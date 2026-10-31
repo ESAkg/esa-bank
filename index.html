@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ky">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>ESA Bank — Сенин ишенимдүү банкың</title>
+<meta name="theme-color" content="#0a1f3d">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.24 4.24M6.6 6.7C4 8.3 1.5 12 1.5 12S5 19 12 19c1.8 0 3.3-.4 4.6-1.1M9.9 5.2C10.6 5.1 11.3 5 12 5c7 0 10.5 7 10.5 7-.5.9-1.6 2.7-3.3 4.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 20c1-3.8 4.2-6 7.5-6s6.5 2.2 7.5 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 18.3h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-swap" viewBox="0 0 24 24"><path d="M4 8h13.5M17.5 8 13.8 4.3M20 16H6.5M6.5 16l3.7 3.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="14" y="3" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="14" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14.5 14.5h3v3h-3zM20 14.5v3M14.5 20h3M19 19.3h2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.5V12l3.2 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-camera" viewBox="0 0 24 24"><path d="M4 8h2.2l1.1-2h9.4l1.1 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.3" r="3.3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="M4.5 12.5 9.5 17.5 19.5 6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-close" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-hourglass" viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3c0 4 3 5 5 6-2 1-5 2-5 6M17 3c0 4-3 5-5 6 2 1 5 2 5 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-card" viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 10h19" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.3h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-wallet" viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h12A2.5 2.5 0 0 1 20 7.5V17a2 2 0 0 1-2 2H5.5A2.5 2.5 0 0 1 3 16.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14.5 12.3h4.5v3h-4.5a1.5 1.5 0 0 1 0-3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-arrow-down" viewBox="0 0 24 24"><path d="M12 4v15M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-arrow-up" viewBox="0 0 24 24"><path d="M12 20V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-chevron" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 8h6M9 11.5h6M9 15h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="ic-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-home" viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10.5V20h12v-9.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 20v-5.5h4V20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+<div id="app">
+
+  <!-- ===================== LOGIN ===================== -->
+  <section class="screen active" id="screen-login">
+    <div class="auth-screen">
+      <div class="mountains-decor" aria-hidden="true">
+        <svg viewBox="0 0 400 140" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 140 L55 55 L95 95 L150 30 L205 95 L245 60 L300 110 L340 70 L400 140 Z" fill="url(#mg1)"/>
+          <path d="M0 140 L80 85 L130 115 L190 70 L250 120 L310 90 L400 140 Z" fill="url(#mg2)"/>
+          <circle cx="330" cy="38" r="16" fill="url(#mg3)"/>
+          <defs>
+            <linearGradient id="mg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c4784"/><stop offset="1" stop-color="#0f2a52"/></linearGradient>
+            <linearGradient id="mg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15376a"/><stop offset="1" stop-color="#0a1f3d"/></linearGradient>
+            <radialGradient id="mg3"><stop offset="0" stop-color="#f5c518"/><stop offset="1" stop-color="#f5c518" stop-opacity="0"/></radialGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="auth-hero">
+        <div class="esa-logo">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="24" fill="url(#g1)"/>
+            <path d="M8 32L18 16L24 26L29 18L40 32" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <defs><linearGradient id="g1" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#1f6feb"/><stop offset="1" stop-color="#0a1f3d"/></linearGradient></defs>
+          </svg>
+          <div class="wordmark"><b>ESA Bank</b><span>Сенин ишенимдүү банкың</span></div>
+        </div>
+      </div>
+      <div class="auth-title">Кирүү</div>
+      <div class="auth-subtitle">Аккаунтуңузга кирүү үчүн маалыматыңызды киргизиңиз</div>
+
+      <form class="form-stack" id="form-login" style="margin-top:20px;">
+        <div class="field">
+          <label>Телефон номери</label>
+          <div class="input-wrap"><input type="tel" id="login-phone" placeholder="+996 700 123 456" autocomplete="tel" required></div>
+        </div>
+        <div class="field">
+          <label>Сырсөз</label>
+          <div class="input-wrap">
+            <input type="password" id="login-password" placeholder="Сырсөзүңүздү киргизиңиз" autocomplete="current-password" required>
+            <button type="button" class="toggle-eye" data-toggle="login-password"><svg class="icon"><use href="#ic-eye"/></svg></button>
+          </div>
+        </div>
+        <div class="field-error" id="login-error"></div>
+        <button type="submit" class="btn btn-primary" id="login-submit">Кирүү</button>
+        <div style="text-align:right; margin-top:10px;">
+          <a href="#" id="link-forgot" style="font-size:13px; color:var(--blue-400); font-weight:600;">Сырсөздү унуттуңузбу?</a>
+        </div>
+      </form>
+
+      <div class="divider-line"></div>
+      <button class="btn btn-secondary" id="link-register">Жаңы аккаунт түзүү</button>
+    </div>
+  </section>
+
+  <!-- ===================== REGISTER ===================== -->
+  <section class="screen" id="screen-register">
+    <div class="screen-header"><button class="back-btn" data-goto="screen-login"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>Катталуу</h2></div>
+    <div class="content">
+      <p class="auth-subtitle" style="margin-bottom:18px;">Жаңы аккаунт түзүү үчүн маалыматыңызды толтуруңуз</p>
+      <form class="form-stack" id="form-register">
+        <div class="field">
+          <label>Толук атыңыз</label>
+          <div class="input-wrap"><input type="text" id="reg-name" placeholder="Мис: Асанов Азамат" required></div>
+        </div>
+        <div class="field">
+          <label>Телефон номери</label>
+          <div class="input-wrap"><input type="tel" id="reg-phone" placeholder="+996 700 123 456" required></div>
+        </div>
+        <div class="field">
+          <label>Сырсөз</label>
+          <div class="input-wrap">
+            <input type="password" id="reg-password" placeholder="Кеминде 6 белги" required>
+            <button type="button" class="toggle-eye" data-toggle="reg-password"><svg class="icon"><use href="#ic-eye"/></svg></button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Сырсөздү кайталаңыз</label>
+          <div class="input-wrap">
+            <input type="password" id="reg-password2" placeholder="Сырсөздү кайра киргизиңиз" required>
+            <button type="button" class="toggle-eye" data-toggle="reg-password2"><svg class="icon"><use href="#ic-eye"/></svg></button>
+          </div>
+        </div>
+        <div class="field-error" id="register-error"></div>
+        <button type="submit" class="btn btn-primary" id="register-submit">Катталуу</button>
+      </form>
+      <div class="auth-links">Аккаунтуңуз барбы? <a href="#" data-goto="screen-login">Кирүү</a></div>
+    </div>
+  </section>
+
+  <!-- ===================== FORGOT PASSWORD ===================== -->
+  <section class="screen" id="screen-forgot">
+    <div class="screen-header"><button class="back-btn" data-goto="screen-login"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>Сырсөздү калыбына келтирүү</h2></div>
+    <div class="content">
+      <div id="forgot-step-1">
+        <p class="auth-subtitle" style="margin-bottom:18px;">Катталган телефон номериңизди киргизиңиз</p>
+        <form class="form-stack" id="form-forgot-phone">
+          <div class="field">
+            <label>Телефон номери</label>
+            <div class="input-wrap"><input type="tel" id="forgot-phone" placeholder="+996 700 123 456" required></div>
+          </div>
+          <div class="field-error" id="forgot-phone-error"></div>
+          <button type="submit" class="btn btn-primary">Кодду алуу</button>
+        </form>
+      </div>
+
+      <div id="forgot-step-2" style="display:none;">
+        <p class="auth-subtitle" style="margin-bottom:6px;">Код <b id="forgot-phone-display"></b> номерине жөнөтүлдү</p>
+        <div class="demo-hint" id="forgot-demo-code"></div>
+        <form class="form-stack" id="form-forgot-reset" style="margin-top:14px;">
+          <div class="field">
+            <label>Текшерүү коду (6 сан)</label>
+            <div class="input-wrap"><input type="text" inputmode="numeric" maxlength="6" id="forgot-code" placeholder="000000" required></div>
+          </div>
+          <div class="field">
+            <label>Жаңы сырсөз</label>
+            <div class="input-wrap">
+              <input type="password" id="forgot-newpass" placeholder="Кеминде 6 белги" required>
+              <button type="button" class="toggle-eye" data-toggle="forgot-newpass"><svg class="icon"><use href="#ic-eye"/></svg></button>
+            </div>
+          </div>
+          <div class="field-error" id="forgot-reset-error"></div>
+          <button type="submit" class="btn btn-primary">Сырсөздү жаңыртуу</button>
+        </form>
+        <div class="resend-timer"><a href="#" id="forgot-resend">Кодду кайра жөнөтүү</a></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <section class="screen" id="screen-dashboard">
+    <div class="topbar">
+      <div class="esa-logo">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="24" r="24" fill="url(#g2)"/>
+          <path d="M8 32L18 16L24 26L29 18L40 32" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <defs><linearGradient id="g2" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#1f6feb"/><stop offset="1" stop-color="#0a1f3d"/></linearGradient></defs>
+        </svg>
+        <div class="wordmark"><b>ESA Bank</b><span>Сенин ишенимдүү банкың</span></div>
+      </div>
+      <div class="topbar-actions">
+        <button class="icon-btn" data-goto="screen-profile"><svg class="icon"><use href="#ic-user"/></svg></button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="greeting">
+        <h1>Салам, <span id="dash-firstname">...</span>!</h1>
+        <p id="dash-date"></p>
+      </div>
+
+      <div class="balance-card">
+        <div class="label"><svg class="icon"><use href="#ic-card"/></svg> Негизги эсеп</div>
+        <div class="amount"><span id="dash-balance">0.00</span> <span id="dash-balance-suffix">сом</span></div>
+        <div class="account-no" id="dash-account">KY•• •••• •••• ••••</div>
+      </div>
+
+      <div class="quick-actions">
+        <button class="quick-action" data-goto="screen-transfer-phone"><span class="qi-icon"><svg class="icon"><use href="#ic-swap"/></svg></span><span>Телефон менен которуу</span></button>
+        <button class="quick-action" data-goto="screen-qr-receive"><span class="qi-icon"><svg class="icon"><use href="#ic-qr"/></svg></span><span>QR менен төлөм</span></button>
+        <button class="quick-action" data-goto="screen-history"><span class="qi-icon"><svg class="icon"><use href="#ic-clock"/></svg></span><span>Тарых</span></button>
+        <button class="quick-action" data-goto="screen-profile"><span class="qi-icon"><svg class="icon"><use href="#ic-user"/></svg></span><span>Профиль</span></button>
+      </div>
+
+      <div class="section-title"><h3>Акыркы операциялар</h3><a href="#" data-goto="screen-history">Баары</a></div>
+      <div id="dash-tx-list"><div class="empty-state"><div class="ei"><svg class="icon"><use href="#ic-receipt"/></svg></div>Операциялар жок</div></div>
+    </div>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-goto="screen-dashboard"><span class="ni-icon"><svg class="icon"><use href="#ic-home"/></svg></span>Башкы</button>
+      <button class="nav-item" data-goto="screen-transfer-phone"><span class="ni-icon"><svg class="icon"><use href="#ic-swap"/></svg></span>Которуу</button>
+      <button class="nav-item" data-goto="screen-qr-receive"><span class="ni-icon"><svg class="icon"><use href="#ic-qr"/></svg></span>QR</button>
+      <button class="nav-item" data-goto="screen-history"><span class="ni-icon"><svg class="icon"><use href="#ic-clock"/></svg></span>Тарых</button>
+      <button class="nav-item" data-goto="screen-profile"><span class="ni-icon"><svg class="icon"><use href="#ic-user"/></svg></span>Профиль</button>
+    </nav>
+  </section>
+
+  <!-- ===================== TRANSFER BY PHONE ===================== -->
+  <section class="screen" id="screen-transfer-phone">
+    <div class="screen-header"><button class="back-btn" data-goto="screen-dashboard"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>Телефон номери менен которуу</h2></div>
+    <div class="content">
+      <div class="tabs">
+        <div class="tab active" data-goto="screen-transfer-phone">Телефон номери</div>
+        <div class="tab" data-goto="screen-qr-pay">QR код</div>
+      </div>
+
+      <form id="form-transfer-lookup">
+        <div class="field">
+          <label>Алуучунун телефон номери</label>
+          <div class="input-wrap"><input type="tel" id="transfer-phone" placeholder="+996 700 987 654" required></div>
+        </div>
+        <div class="field-error" id="transfer-lookup-error"></div>
+        <button type="submit" class="btn btn-secondary" id="transfer-lookup-btn">Алуучуну текшерүү</button>
+      </form>
+
+      <div id="transfer-recipient-block" style="display:none; margin-top:18px;">
+        <div class="recipient-card">
+          <div class="avatar" id="transfer-avatar">?</div>
+          <div class="ri"><b id="transfer-recipient-name"></b><span id="transfer-recipient-id"></span></div>
+        </div>
+
+        <div class="amount-input-wrap">
+          <input type="number" id="transfer-amount" placeholder="0" inputmode="decimal">
+          <div class="currency-suffix">сом</div>
+        </div>
+        <div class="amount-quick">
+          <div class="chip" data-amt="100">100</div>
+          <div class="chip" data-amt="500">500</div>
+          <div class="chip" data-amt="1000">1 000</div>
+          <div class="chip" data-amt="5000">5 000</div>
+        </div>
+
+        <div class="field">
+          <label>Эскертүү (милдеттүү эмес)</label>
+          <div class="input-wrap"><input type="text" id="transfer-note" placeholder="Мис: Тамак үчүн" maxlength="140"></div>
+        </div>
+
+        <div class="field-error" id="transfer-submit-error"></div>
+        <button class="btn btn-primary" id="transfer-submit-btn">Которуу</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== QR RECEIVE (my code) ===================== -->
+  <section class="screen" id="screen-qr-receive">
+    <div class="screen-header"><button class="back-btn" data-goto="screen-dashboard"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>QR код менен алуу</h2></div>
+    <div class="content">
+      <div class="tabs">
+        <div class="tab active" data-goto="screen-qr-receive">Кодду көрсөтүү</div>
+        <div class="tab" data-goto="screen-qr-pay">Сканерлөө</div>
+      </div>
+      <div class="qr-wrap">
+        <div class="qr-box"><img id="my-qr-img" src="" alt="QR код" width="220" height="220"></div>
+        <div class="qr-user"><b id="my-qr-name"></b><span id="my-qr-id"></span></div>
+        <p style="color:var(--text-dim); font-size:13px; text-align:center;">Акча которуу үчүн бул кодду экинчи колдонуучуга көрсөтүңүз</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== QR PAY (scan) ===================== -->
+  <section class="screen" id="screen-qr-pay">
+    <div class="screen-header"><button class="back-btn" data-goto="screen-dashboard"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>QR код менен төлөө</h2></div>
+    <div class="content">
+      <div class="tabs">
+        <div class="tab" data-goto="screen-qr-receive">Кодду көрсөтүү</div>
+        <div class="tab active" data-goto="screen-qr-pay">Сканерлөө</div>
+      </div>
+
+      <div id="qr-scan-block">
+        <div id="qr-reader"></div>
+        <button class="btn btn-secondary" id="qr-start-cam"><svg class="icon"><use href="#ic-camera"/></svg> Камераны иштетүү</button>
+        <div class="divider-line"></div>
+        <p style="font-size:12.5px; color:var(--text-dim); text-align:center; margin-bottom:10px;">же кодду кол менен киргизиңиз</p>
+        <div class="field">
+          <div class="input-wrap"><input type="text" id="qr-manual-code" placeholder="QR код тексти"></div>
+        </div>
+        <button class="btn btn-secondary" id="qr-manual-check">Текшерүү</button>
+        <div class="field-error" id="qr-scan-error"></div>
+      </div>
+
+      <div id="qr-pay-block" style="display:none; margin-top:18px;">
+        <div class="recipient-card">
+          <div class="avatar" id="qrpay-avatar">?</div>
+          <div class="ri"><b id="qrpay-recipient-name"></b><span id="qrpay-recipient-id"></span></div>
+        </div>
+        <div class="amount-input-wrap">
+          <input type="number" id="qrpay-amount" placeholder="0" inputmode="decimal">
+          <div class="currency-suffix">сом</div>
+        </div>
+        <div class="amount-quick">
+          <div class="chip" data-amt-qr="100">100</div>
+          <div class="chip" data-amt-qr="500">500</div>
+          <div class="chip" data-amt-qr="1000">1 000</div>
+          <div class="chip" data-amt-qr="5000">5 000</div>
+        </div>
+        <div class="field">
+          <label>Эскертүү (милдеттүү эмес)</label>
+          <div class="input-wrap"><input type="text" id="qrpay-note" placeholder="Мис: Тамак үчүн" maxlength="140"></div>
+        </div>
+        <div class="field-error" id="qrpay-submit-error"></div>
+        <button class="btn btn-primary" id="qrpay-submit-btn">Төлөө</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PROCESSING ===================== -->
+  <section class="screen result-screen" id="screen-processing">
+    <div class="status-circle processing"><svg class="icon icon-lg"><use href="#ic-hourglass"/></svg></div>
+    <div class="result-status-text processing">Которуу иштетилүүдө<span class="loader-dots"></span></div>
+    <div class="result-amount" id="processing-amount">- 0.00 сом</div>
+    <div class="result-sub">Сураныч, күтө туруңуз</div>
+  </section>
+
+  <!-- ===================== RESULT (success / fail) ===================== -->
+  <section class="screen result-screen" id="screen-result">
+    <div class="content" style="width:100%; display:flex; flex-direction:column; align-items:center;">
+      <div class="status-circle" id="result-circle"><svg class="icon icon-lg"><use href="#ic-check"/></svg></div>
+      <div class="result-status-text" id="result-status-text">Транзакция ийгиликтүү аткарылды</div>
+      <div class="result-amount" id="result-amount">- 0.00 сом</div>
+      <div class="result-sub" id="result-sub">Которуу</div>
+
+      <div class="receipt-card" id="result-receipt">
+        <h4>Транзакция тууралуу маалымат</h4>
+        <div class="receipt-row"><span class="k">Дата жана убакыт</span><span class="v" id="r-date"></span></div>
+        <div class="receipt-row"><span class="k">Чек номери</span><span class="v" id="r-receipt"></span></div>
+        <div class="receipt-row"><span class="k">Алуучу</span><span class="v" id="r-recipient"></span></div>
+        <div class="receipt-row"><span class="k">Сумма</span><span class="v" id="r-amount"></span></div>
+        <div class="receipt-row" id="r-note-row"><span class="k">Эскертүү</span><span class="v" id="r-note"></span></div>
+      </div>
+
+      <button class="btn btn-primary" id="result-done-btn">Башкы бетке</button>
+    </div>
+  </section>
+
+  <!-- ===================== HISTORY ===================== -->
+  <section class="screen" id="screen-history">
+    <div class="screen-header"><button class="back-btn" data-goto="screen-dashboard"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>Операциялардын тарыхы</h2></div>
+    <div class="content">
+      <div id="history-list"><div class="empty-state"><div class="ei"><svg class="icon"><use href="#ic-receipt"/></svg></div>Жүктөлүүдө...</div></div>
+    </div>
+  </section>
+
+  <!-- ===================== PROFILE ===================== -->
+  <section class="screen" id="screen-profile">
+    <div class="screen-header"><button class="back-btn" data-goto="screen-dashboard"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>Профиль</h2></div>
+    <div class="content">
+      <div class="profile-header">
+        <div class="profile-avatar" id="profile-avatar">?</div>
+        <b id="profile-name"></b>
+        <span id="profile-id"></span>
+      </div>
+      <div class="menu-list">
+        <div class="menu-row"><span class="mi"><svg class="icon"><use href="#ic-phone"/></svg></span><span id="profile-phone"></span></div>
+        <div class="menu-row"><span class="mi"><svg class="icon"><use href="#ic-card"/></svg></span><span id="profile-account"></span></div>
+        <div class="menu-row"><span class="mi"><svg class="icon"><use href="#ic-wallet"/></svg></span><span id="profile-balance"></span></div>
+      </div>
+      <div style="height:18px;"></div>
+      <button class="btn btn-danger" id="logout-btn">Чыгуу</button>
+    </div>
+  </section>
+
+</div>
+
+<div id="toast-host"></div>
+
+<!-- QR-сканер библиотекасы (CDN, только для чтения QR с камеры устройства пользователя) -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
