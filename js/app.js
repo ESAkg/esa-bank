@@ -105,6 +105,22 @@ function toggleTheme() {
 applyTheme(getTheme());
 
 // ======================================================
+// NOTIFICATIONS TOGGLE (Settings → Эскертүүлөр)
+// ======================================================
+(function initNotifToggle() {
+  const toggle = document.getElementById('toggle-notifications');
+  if (!toggle) return;
+  const saved = localStorage.getItem('esa_notifications_enabled');
+  if (saved !== null) toggle.checked = saved === '1';
+  toggle.addEventListener('change', () => {
+    localStorage.setItem('esa_notifications_enabled', toggle.checked ? '1' : '0');
+    if (toggle.checked && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  });
+})();
+
+// ======================================================
 // LANGUAGE
 // ======================================================
 document.addEventListener('click', (e) => {
@@ -911,8 +927,49 @@ function showResult(data, errorObj, amount, recipientLabel, note) {
     const noteRow = document.getElementById('r-note-row');
     if (note) { noteRow.style.display = 'flex'; document.getElementById('r-note').textContent = note; }
     else { noteRow.style.display = 'none'; }
+
+    showTransferNotification(tx, recipientLabel);
   }
   goto('screen-result');
+}
+
+// ======================================================
+// TRANSFER NOTIFICATIONS (in-app banner + real OS push, ESA Bank-branded)
+// ======================================================
+function showNotifBanner(title, body) {
+  const banner = document.getElementById('notif-banner');
+  if (!banner) return;
+  document.getElementById('nb-title-text').textContent = title;
+  document.getElementById('nb-time-text').textContent = 'сейчас';
+  document.getElementById('nb-body-text').textContent = body;
+  banner.classList.add('show');
+  clearTimeout(banner._hideTimer);
+  banner._hideTimer = setTimeout(() => banner.classList.remove('show'), 4200);
+}
+
+function notificationsEnabled() {
+  const toggle = document.getElementById('toggle-notifications');
+  return toggle ? toggle.checked : true;
+}
+
+function showTransferNotification(tx, recipientLabel) {
+  if (!notificationsEnabled()) return;
+  const body = `Которуу: ${formatMoney(tx.amount)} сом → ${recipientLabel}`;
+  showNotifBanner('ESA Bank', body);
+
+  // Real OS-level push notification via the registered service worker,
+  // tied to this user's own completed transaction — ESA Bank branded only.
+  if ('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(reg => {
+      reg.showNotification('ESA Bank', {
+        body,
+        icon: 'icons/icon-192.png',
+        badge: 'icons/icon-64.png',
+        tag: 'esa-transfer-' + tx.receiptNo,
+        data: { receiptNo: tx.receiptNo }
+      }).catch(() => {});
+    }).catch(() => {});
+  }
 }
 
 document.getElementById('result-done-btn').addEventListener('click', () => {

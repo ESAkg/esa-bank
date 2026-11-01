@@ -8,6 +8,8 @@
   --accent-green: #1db954;
   --accent-red: #e5484d;
   --accent-gold: #f5c518;
+  --gold-300: #ffe8a3;
+  --gold-500: #d4a62a;
   --text-light: #eef3fb;
   --text-dim: #9fb3d1;
   --card-bg: #122a4e;
@@ -666,3 +668,107 @@ select.cat-select {
 .switch-track::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .15s; }
 .switch input:checked + .switch-track { background: var(--blue-500); }
 .switch input:checked + .switch-track::before { transform: translateX(18px); }
+
+/* ======================================================
+   "Liquid glass" buttons — frosted, reflective, iOS-style
+   ====================================================== */
+.btn {
+  position: relative; overflow: hidden; isolation: isolate;
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+.btn::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0.06) 42%, rgba(255,255,255,0) 60%);
+  mix-blend-mode: overlay;
+}
+.btn::after {
+  content: ''; position: absolute; left: -30%; top: 0; bottom: 0; width: 36%; z-index: -1; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.55), transparent);
+  transform: skewX(-18deg); opacity: 0; transition: opacity .25s ease, left .5s ease;
+}
+.btn:hover::after, .btn:active::after { left: 120%; opacity: .55; }
+.btn-primary {
+  background: linear-gradient(145deg, rgba(59,130,246,0.92), rgba(31,111,235,0.78) 55%, rgba(15,42,82,0.85));
+  border: 1px solid rgba(255,255,255,0.28);
+  box-shadow: 0 10px 26px -10px rgba(31,111,235,0.6), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -8px 16px -10px rgba(0,0,0,0.35);
+  color: #fff;
+}
+.btn-secondary {
+  background: linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.03));
+  border: 1px solid rgba(255,255,255,0.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 8px 20px -14px rgba(0,0,0,0.5);
+}
+.btn-danger {
+  background: linear-gradient(145deg, rgba(229,72,77,0.88), rgba(170,40,44,0.8));
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 10px 22px -10px rgba(229,72,77,0.55), inset 0 1px 0 rgba(255,255,255,0.35);
+  color: #fff;
+}
+:root[data-theme="light"] .btn-secondary { background: linear-gradient(145deg, rgba(255,255,255,0.75), rgba(255,255,255,0.35)); border-color: rgba(15,36,64,0.12); }
+.icon-btn, .theme-toggle, .install-btn, .bell-btn, .lang-switch, .qi-icon, select.cat-select {
+  backdrop-filter: blur(14px) saturate(160%); -webkit-backdrop-filter: blur(14px) saturate(160%);
+  background: linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.03)) !important;
+  border: 1px solid rgba(255,255,255,0.22) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 6px 16px -10px rgba(0,0,0,0.45);
+}
+.side-item.active {
+  background: linear-gradient(145deg, rgba(59,130,246,0.85), rgba(15,42,82,0.85));
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+}
+
+/* ======================================================
+   Login hero — gold & glass redesign
+   ====================================================== */
+.auth-screen.gold-theme {
+  background: radial-gradient(ellipse at 20% 0%, #163463 0%, var(--navy-900) 55%), var(--navy-900);
+}
+.gold-swoosh { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.gold-swoosh svg { position: absolute; width: 100%; height: 100%; }
+.auth-building { position: relative; z-index: 0; height: 190px; margin: 0 -26px 10px; overflow: hidden; }
+.auth-building svg { width: 100%; height: 100%; }
+.auth-building::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, var(--navy-900) 96%); }
+.e-logo-mark { width: 92px; height: 92px; margin: 0 auto 6px; display: block; filter: drop-shadow(0 6px 18px rgba(212,166,42,0.35)); }
+.auth-wordmark { text-align: center; position: relative; z-index: 1; }
+.auth-wordmark .line1 { font-size: 30px; font-weight: 800; letter-spacing: 1px; }
+.auth-wordmark .line1 .gold { background: linear-gradient(135deg, var(--gold-300), var(--gold-500)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.auth-wordmark .line2 { font-size: 12px; color: var(--text-dim); letter-spacing: 2px; margin-top: 4px; text-transform: uppercase; }
+.trust-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 26px; color: var(--text-dim); font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase; position: relative; z-index: 1; }
+.trust-row .icon { width: 15px; height: 15px; color: var(--accent-gold); }
+.field.glass-field .input-wrap { position: relative; }
+.field.glass-field input {
+  padding-left: 44px; border-radius: 999px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.18);
+}
+.field.glass-field .field-icon {
+  position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.78); pointer-events: none; z-index: 2;
+}
+.field.glass-field .field-icon .icon { width: 18px; height: 18px; }
+
+/* ======================================================
+   In-app notification banner (slides down like a system push)
+   ====================================================== */
+#notif-banner {
+  position: fixed; top: 10px; left: 50%; transform: translateX(-50%) translateY(-130%);
+  width: calc(100% - 24px); max-width: 420px; z-index: 500;
+  background: linear-gradient(145deg, rgba(20,40,70,0.78), rgba(10,25,48,0.72));
+  backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.18); border-radius: 18px;
+  padding: 12px 14px; display: flex; align-items: center; gap: 11px;
+  box-shadow: 0 14px 34px -10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25);
+  transition: transform .35s cubic-bezier(.2,.9,.3,1.3);
+}
+#notif-banner.show { transform: translateX(-50%) translateY(0); }
+#notif-banner .nb-icon {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--blue-500), var(--navy-600)); display: flex; align-items: center; justify-content: center;
+}
+#notif-banner .nb-icon svg { width: 19px; height: 19px; color: #fff; }
+#notif-banner .nb-text { flex: 1; min-width: 0; }
+#notif-banner .nb-title { font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; }
+#notif-banner .nb-title .nb-time { font-weight: 500; color: var(--text-dim); font-size: 10.5px; }
+#notif-banner .nb-body { font-size: 12.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

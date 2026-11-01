@@ -50,7 +50,18 @@
     <symbol id="ic-repeat" viewBox="0 0 24 24"><path d="M4 11V8a3 3 0 0 1 3-3h11M18 3l3 2.5L18 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 13v3a3 3 0 0 1-3 3H6M6 21l-3-2.5L6 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ic-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="12" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="19" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.1 10.7 15.9 6.3M8.1 13.3l7.8 4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
     <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.8c0-.4.3-.8.8-.8h3.4c.4 0 .8.4.8.8V7M7 7l1 13a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="ic-mountain-logo" viewBox="0 0 48 48"><circle cx="24" cy="24" r="24" fill="url(#g-logo)"/><path d="M8 32L18 16L24 26L29 18L40 32" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><defs><linearGradient id="g-logo" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#1f6feb"/><stop offset="1" stop-color="#0a1f3d"/></linearGradient></defs></symbol>
+    <symbol id="ic-mountain-logo" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="24" fill="url(#g-logo)"/>
+      <circle cx="24" cy="24" r="22.6" fill="none" stroke="url(#g-logo-ring)" stroke-width="1.3" opacity="0.9"/>
+      <circle cx="33.5" cy="13.5" r="3.1" fill="url(#g-logo-sun)"/>
+      <path d="M8 32L18 16L24 26L29 18L40 32" stroke="url(#g-logo-peaks)" stroke-width="3.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <defs>
+        <linearGradient id="g-logo" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#1f6feb"/><stop offset="0.55" stop-color="#0a1f3d"/><stop offset="1" stop-color="#05101f"/></linearGradient>
+        <linearGradient id="g-logo-ring" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#f5e3a3"/><stop offset="0.5" stop-color="#d4af37"/><stop offset="1" stop-color="#9c7a1e"/></linearGradient>
+        <linearGradient id="g-logo-peaks" x1="8" y1="32" x2="40" y2="16"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#f5e3a3"/></linearGradient>
+        <radialGradient id="g-logo-sun"><stop stop-color="#fff3cf"/><stop offset="1" stop-color="#e8b84b"/></radialGradient>
+      </defs>
+    </symbol>
   </defs>
 </svg>
 
@@ -107,54 +118,85 @@
 
   <!-- ===================== LOGIN ===================== -->
   <section class="screen active" id="screen-login">
-    <div class="auth-screen">
-      <div class="mountains-decor" aria-hidden="true">
-        <svg viewBox="0 0 400 140" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0 140 L55 55 L95 95 L150 30 L205 95 L245 60 L300 110 L340 70 L400 140 Z" fill="url(#mg1)"/>
-          <path d="M0 140 L80 85 L130 115 L190 70 L250 120 L310 90 L400 140 Z" fill="url(#mg2)"/>
-          <circle cx="330" cy="38" r="16" fill="url(#mg3)"/>
+    <div class="auth-screen gold-theme">
+      <div class="gold-swoosh" aria-hidden="true">
+        <svg viewBox="0 0 400 500" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M-20 60 C 40 0, 90 10, 60 70 C 30 130, 120 90, 150 20" fill="none" stroke="url(#gs1)" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
+          <path d="M-30 90 C 30 30, 70 50, 45 100" fill="none" stroke="url(#gs1)" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+          <path d="M420 440 C 360 500, 310 490, 340 430 C 370 370, 280 410, 250 480" fill="none" stroke="url(#gs2)" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
           <defs>
-            <linearGradient id="mg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c4784"/><stop offset="1" stop-color="#0f2a52"/></linearGradient>
-            <linearGradient id="mg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15376a"/><stop offset="1" stop-color="#0a1f3d"/></linearGradient>
-            <radialGradient id="mg3"><stop offset="0" stop-color="#f5c518"/><stop offset="1" stop-color="#f5c518" stop-opacity="0"/></radialGradient>
+            <linearGradient id="gs1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe8a3"/><stop offset="1" stop-color="#d4a62a"/></linearGradient>
+            <linearGradient id="gs2" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#d4a62a"/><stop offset="1" stop-color="#ffe8a3"/></linearGradient>
           </defs>
         </svg>
       </div>
-      <div class="auth-hero">
-        <div class="esa-logo">
-          <svg viewBox="0 0 48 48"><use href="#ic-mountain-logo"/></svg>
-          <div class="wordmark"><b>ESA Bank</b><span data-i18n="app_tagline">Сенин ишенимдүү банкың</span></div>
+      <div class="auth-building" aria-hidden="true">
+        <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+          <rect x="230" y="30" width="100" height="170" fill="url(#bld1)"/>
+          <rect x="300" y="70" width="70" height="130" fill="url(#bld2)"/>
+          <g fill="#ffe8a3" opacity="0.55">
+            <rect x="240" y="45" width="8" height="8"/><rect x="258" y="45" width="8" height="8"/><rect x="276" y="45" width="8" height="8"/><rect x="294" y="45" width="8" height="8"/>
+            <rect x="240" y="65" width="8" height="8"/><rect x="276" y="65" width="8" height="8"/><rect x="294" y="65" width="8" height="8"/>
+            <rect x="240" y="85" width="8" height="8"/><rect x="258" y="85" width="8" height="8"/><rect x="294" y="85" width="8" height="8"/>
+            <rect x="240" y="105" width="8" height="8"/><rect x="258" y="105" width="8" height="8"/><rect x="276" y="105" width="8" height="8"/>
+            <rect x="310" y="90" width="7" height="7"/><rect x="325" y="90" width="7" height="7"/><rect x="340" y="90" width="7" height="7"/><rect x="355" y="90" width="7" height="7"/>
+            <rect x="310" y="110" width="7" height="7"/><rect x="340" y="110" width="7" height="7"/><rect x="355" y="110" width="7" height="7"/>
+          </g>
+          <defs>
+            <linearGradient id="bld1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c3f73"/><stop offset="1" stop-color="#0a1f3d"/></linearGradient>
+            <linearGradient id="bld2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#153363"/><stop offset="1" stop-color="#081a35"/></linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="auth-hero" style="margin-top:-18px;">
+        <svg class="e-logo-mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <path d="M72 20 H34 a10 10 0 0 0 -10 10 v10 a10 10 0 0 0 10 10 h22 a10 10 0 0 1 10 10 v10 a10 10 0 0 1 -10 10 H28" fill="none" stroke="url(#elogo)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M18 70 C 40 86, 70 82, 84 58" fill="none" stroke="url(#elogo2)" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+          <defs>
+            <linearGradient id="elogo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b9c6da"/></linearGradient>
+            <linearGradient id="elogo2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d4a62a"/><stop offset="1" stop-color="#ffe8a3"/></linearGradient>
+          </defs>
+        </svg>
+        <div class="auth-wordmark">
+          <div class="line1">ESA <span class="gold">BANK</span></div>
+          <div class="line2" data-i18n="app_tagline">Сенин ишенимдүү банкың</div>
         </div>
       </div>
-      <div class="lang-switch" style="justify-content:center; margin:0 auto 16px; width:fit-content;">
+      <div class="lang-switch" style="justify-content:center; margin:18px auto 16px; width:fit-content; position:relative; z-index:1;">
         <button data-lang-btn="ky">KG</button>
         <button data-lang-btn="ru">RU</button>
         <button data-lang-btn="en">EN</button>
       </div>
-      <div class="auth-title" data-i18n="btn_login">Кирүү</div>
-      <div class="auth-subtitle">Аккаунтуңузга кирүү үчүн маалыматыңызды киргизиңиз</div>
+      <div class="auth-title" data-i18n="btn_login" style="position:relative; z-index:1;">Кирүү</div>
+      <div class="auth-subtitle" style="position:relative; z-index:1;">Аккаунтуңузга кирүү үчүн маалыматыңызды киргизиңиз</div>
 
-      <form class="form-stack" id="form-login" style="margin-top:20px;">
-        <div class="field">
+      <form class="form-stack" id="form-login" style="margin-top:20px; position:relative; z-index:1;">
+        <div class="field glass-field">
           <label>Телефон номери</label>
-          <div class="input-wrap"><input type="tel" id="login-phone" placeholder="+996 700 123 456" autocomplete="tel" required></div>
+          <div class="input-wrap"><span class="field-icon"><svg class="icon"><use href="#ic-phone"/></svg></span><input type="tel" id="login-phone" placeholder="+996 700 123 456" autocomplete="tel" required></div>
         </div>
-        <div class="field">
+        <div class="field glass-field">
           <label>Сырсөз</label>
           <div class="input-wrap">
-            <input type="password" id="login-password" placeholder="Сырсөзүңүздү киргизиңиз" autocomplete="current-password" required>
+            <span class="field-icon"><svg class="icon"><use href="#ic-shield"/></svg></span>
+            <input type="password" id="login-password" placeholder="Сырсөзүңүздү киргизиңиз" autocomplete="current-password" required style="padding-left:44px;">
             <button type="button" class="toggle-eye" data-toggle="login-password"><svg class="icon"><use href="#ic-eye"/></svg></button>
           </div>
         </div>
         <div class="field-error" id="login-error"></div>
-        <button type="submit" class="btn btn-primary" id="login-submit" data-i18n="btn_login">Кирүү</button>
+        <button type="submit" class="btn btn-primary" id="login-submit" style="border-radius:999px;"><svg class="icon" style="width:17px;height:17px;"><use href="#ic-arrow-up"/></svg> <span data-i18n="btn_login">Кирүү</span></button>
         <div style="text-align:right; margin-top:10px;">
           <a href="#" id="link-forgot" data-i18n="forgot_password" style="font-size:13px; color:var(--blue-400); font-weight:600;">Сырсөздү унуттуңузбу?</a>
         </div>
       </form>
 
-      <div class="divider-line"></div>
-      <button class="btn btn-secondary" id="link-register" data-i18n="new_account">Жаңы аккаунт түзүү</button>
+      <div class="divider-line" style="position:relative; z-index:1;"></div>
+      <button class="btn btn-secondary" id="link-register" data-i18n="new_account" style="border-radius:999px; position:relative; z-index:1;">Жаңы аккаунт түзүү</button>
+
+      <div class="trust-row">
+        <svg class="icon"><use href="#ic-shield"/></svg>
+        <span id="trust-row-text">НАДЁЖНОСТЬ · БЕЗОПАСНОСТЬ · РАЗВИТИЕ</span>
+      </div>
     </div>
   </section>
 
@@ -726,6 +768,14 @@
 </div>
 
 <div id="toast-host"></div>
+
+<div id="notif-banner" role="status" aria-live="polite">
+  <div class="nb-icon"><svg class="icon"><use href="#ic-bolt"/></svg></div>
+  <div class="nb-text">
+    <div class="nb-title"><span id="nb-title-text">ESA Bank</span><span class="nb-time" id="nb-time-text">сейчас</span></div>
+    <div class="nb-body" id="nb-body-text"></div>
+  </div>
+</div>
 
 <!-- QR-сканер библиотекасы (CDN, только для чтения QR с камеры устройства пользователя) -->
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
