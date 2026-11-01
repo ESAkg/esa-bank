@@ -5,6 +5,7 @@
  */
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
@@ -18,6 +19,95 @@ const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 дней
 const RESET_CODE_TTL_MS = 10 * 60 * 1000; // 10 минут
 const STARTING_BALANCE = 25000; // стартовый бонус для новых клиентов (демо)
 const OWNER_DISPLAY_BALANCE = 999999999; // счёт владельца — безлимитный, баланс не уменьшается
+
+// Категории операций — используются для разбивки "месячные траты" на экране статистики
+const CATEGORIES = ['food', 'transport', 'bills', 'entertainment', 'shopping', 'health', 'other'];
+function normalizeCategory(c) {
+  return CATEGORIES.includes(c) ? c : 'other';
+}
+
+// ---------- Курсы валют (реальные, с внешнего источника + кэш + запасные значения) ----------
+// Источник: open.er-api.com — бесплатный публичный API, ключ не нужен.
+// Если сервер не может достучаться до интернета (нет сети, таймаут), отдаём
+// последние известные значения, а если их тоже нет — разумные запасные цифры,
+// чтобы экран курсов никогда не был пустым.
+let ratesCache = { at: 0, base: null };
+const RATES_TTL_MS = 60 * 60 * 1000; // обновляем раз в час
+const FALLBACK_USD_RATES = { USD: 1, KGS: 87.3, EUR: 0.93, KZT: 522, UZS: 12950, RUB: 97.5, CNY: 7.1, GBP: 0.78 };
+
+function fetchJson(url, timeoutMs = 7000) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { timeout: timeoutMs, headers: { 'User-Agent': 'ESA-Bank/1.0' } }, (res) => {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        res.resume();
+        return reject(new Error('HTTP ' + res.statusCode));
+      }
+      let data = '';
+      res.on('data', (c) => { data += c; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
+      });
+    });
+    req.on('timeout', () => { req.destroy(new Error('timeout')); });
+    req.on('error', reject);
+  });
+}
+
+async function getUsdRates() {
+  const now = Date.now();
+  if (ratesCache.base && (now - ratesCache.at) < RATES_TTL_MS) {
+    return { rates: ratesCache.base, live: ratesCache.live, fetchedAt: ratesCache.at };
+  }
+  try {
+    const json = await fetchJson('https://open.er-api.com/v6/latest/USD');
+    if (json && json.result === 'success' && json.rates && json.rates.KGS) {
+      ratesCache = { at: now, base: json.rates, live: true };
+      // сохраняем в базу как запасной вариант на случай перезапуска без интернета
+      const d = db();
+      d.meta.lastRates = { rates: json.rates, at: now };
+      storeDb.save();
+      return { rates: json.rates, live: true, fetchedAt: now };
+    }
+    throw new Error('bad payload');
+  } catch (err) {
+    const d = db();
+    const saved = d.meta.lastRates;
+    if (saved && saved.rates) {
+      ratesCache = { at: ratesCache.at, base: saved.rates, live: false };
+      return { rates: saved.rates, live: false, fetchedAt: saved.at };
+    }
+    ratesCache = { at: ratesCache.at, base: FALLBACK_USD_RATES, live: false };
+    return { rates: FALLBACK_USD_RATES, live: false, fetchedAt: 0 };
+  }
+}
+
+// Строим таблицу курсов относительно сома (KGS), с небольшим банковским
+// спредом покупки/продажи — как в реальном обменном окне банка.
+async function buildRatesTable() {
+  const { rates, live, fetchedAt } = await getUsdRates();
+  const kgsPerUsd = rates.KGS;
+  const codes = [
+    { code: 'USD', name: 'US Dollar' },
+    { code: 'EUR', name: 'Euro' },
+    { code: 'RUB', name: 'Russian Ruble' },
+    { code: 'KZT', name: 'Kazakhstani Tenge' },
+    { code: 'UZS', name: 'Uzbekistani Som' },
+    { code: 'CNY', name: 'Chinese Yuan' }
+  ];
+  const table = codes.map(({ code, name }) => {
+    const perUsd = code === 'USD' ? 1 : rates[code]; // базовая валюта API (USD) может отсутствовать в самом списке rates
+    if (!perUsd) return null;
+    const mid = kgsPerUsd / perUsd; // сколько сомов стоит 1 единица валюты code
+    const spread = 0.006; // 0.6% спред — типично для обменного окна банка
+    return {
+      code, name,
+      buy: money(mid * (1 - spread)),
+      sell: money(mid * (1 + spread)),
+      mid: money(mid)
+    };
+  }).filter(Boolean);
+  return { table, live, fetchedAt };
+}
 
 // index.html и остальной фронтенд лежат в корне проекта (на уровень выше
 // папки server/), чтобы при открытии репозитория сайт был виден сразу,
@@ -371,6 +461,7 @@ route('POST', '/api/transfer/phone', async (req, res) => {
   const phone = normalizePhone(body.phone);
   const amount = money(body.amount);
   const note = (body.note || '').trim().slice(0, 140);
+  const category = normalizeCategory(body.category);
 
   if (!amount || amount <= 0) return sendJson(res, 400, { error: 'Сумманы туура киргизиңиз (Укажите корректную сумму).' });
 
@@ -387,7 +478,7 @@ route('POST', '/api/transfer/phone', async (req, res) => {
   const result = executeTransfer({
     fromAccount, toAccount,
     fromUser: user, toUser: target,
-    amount, method: 'phone', note
+    amount, method: 'phone', note, category
   });
   sendJson(res, 200, result);
 });
@@ -399,6 +490,7 @@ route('POST', '/api/transfer/qr', async (req, res) => {
   const body = await readJsonBody(req);
   const amount = money(body.amount);
   const note = (body.note || '').trim().slice(0, 140);
+  const category = normalizeCategory(body.category);
   const payload = body.payload;
 
   if (!amount || amount <= 0) return sendJson(res, 400, { error: 'Сумманы туура киргизиңиз (Укажите корректную сумму).' });
@@ -420,12 +512,12 @@ route('POST', '/api/transfer/qr', async (req, res) => {
   const result = executeTransfer({
     fromAccount, toAccount,
     fromUser: user, toUser,
-    amount, method: 'qr', note
+    amount, method: 'qr', note, category
   });
   sendJson(res, 200, result);
 });
 
-function executeTransfer({ fromAccount, toAccount, fromUser, toUser, amount, method, note }) {
+function executeTransfer({ fromAccount, toAccount, fromUser, toUser, amount, method, note, category }) {
   // Счёт владельца банка — эмитент средств: баланс никогда не уменьшается.
   if (!fromAccount.isOwner) {
     fromAccount.balance = money(fromAccount.balance - amount);
@@ -448,6 +540,7 @@ function executeTransfer({ fromAccount, toAccount, fromUser, toUser, amount, met
     currency: 'KGS',
     method, // 'phone' | 'qr'
     note,
+    category: normalizeCategory(category),
     status: 'success',
     receiptNo: genReceiptNo(),
     createdAt: new Date().toISOString()
@@ -461,6 +554,47 @@ function executeTransfer({ fromAccount, toAccount, fromUser, toUser, amount, met
     newBalance: money(fromAccount.balance)
   };
 }
+
+// --- Курсы валют (реальные, обновляются раз в час) ---
+route('GET', '/api/rates', async (req, res) => {
+  try {
+    const data = await buildRatesTable();
+    sendJson(res, 200, data);
+  } catch (err) {
+    sendJson(res, 200, { table: [], live: false, fetchedAt: 0 });
+  }
+});
+
+// --- Статистика по категориям трат за текущий календарный месяц ---
+route('GET', '/api/stats/monthly', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const account = findAccountByUserId(user.id);
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const byCategory = {};
+  let totalOut = 0, totalIn = 0;
+  db().transactions.forEach(t => {
+    const isOut = t.fromAccountId === account.id;
+    const isIn = t.toAccountId === account.id;
+    if (!isOut && !isIn) return;
+    const txYm = (t.createdAt || '').slice(0, 7);
+    if (txYm !== ym) return;
+    if (isOut) {
+      totalOut = money(totalOut + t.amount);
+      const cat = normalizeCategory(t.category);
+      byCategory[cat] = money((byCategory[cat] || 0) + t.amount);
+    } else {
+      totalIn = money(totalIn + t.amount);
+    }
+  });
+  sendJson(res, 200, {
+    month: ym,
+    totalOut, totalIn,
+    byCategory: Object.entries(byCategory).map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount)
+  });
+});
 
 // --- История операций текущего пользователя ---
 route('GET', '/api/transactions', async (req, res) => {
@@ -478,6 +612,7 @@ route('GET', '/api/transactions', async (req, res) => {
       currency: t.currency,
       method: t.method,
       note: t.note,
+      category: t.category || 'other',
       status: t.status,
       receiptNo: t.receiptNo,
       createdAt: t.createdAt
