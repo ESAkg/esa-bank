@@ -50,6 +50,9 @@
     <symbol id="ic-repeat" viewBox="0 0 24 24"><path d="M4 11V8a3 3 0 0 1 3-3h11M18 3l3 2.5L18 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 13v3a3 3 0 0 1-3 3H6M6 21l-3-2.5L6 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ic-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="12" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="19" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.1 10.7 15.9 6.3M8.1 13.3l7.8 4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
     <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.8c0-.4.3-.8.8-.8h3.4c.4 0 .8.4.8.8V7M7 7l1 13a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-gallery" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.3" cy="9.3" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 17l5.2-5.2a2 2 0 0 1 2.8 0L15 14.8M14 13.8l1.6-1.6a2 2 0 0 1 2.8 0L21 14.9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-flash" viewBox="0 0 24 24"><path d="M12.5 2 4 14h6l-1 8 9.5-13h-6l1-7Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-flash-off" viewBox="0 0 24 24"><path d="M12.5 2 7.3 10.4M9.4 14H4l5.5-7.7M13.4 9l4.1-5-1 7h6l-6 8.2M15.5 13.5 11.5 19l1-6M3 3l18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ic-mountain-logo" viewBox="0 0 48 48">
       <circle cx="24" cy="24" r="24" fill="url(#g-logo)"/>
       <circle cx="24" cy="24" r="22.6" fill="none" stroke="url(#g-logo-ring)" stroke-width="1.3" opacity="0.9"/>
@@ -504,61 +507,85 @@
 
   <!-- ===================== QR PAY (scan) ===================== -->
   <section class="screen" id="screen-qr-pay">
-    <div class="screen-header"><button class="back-btn" data-goto="screen-dashboard"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>QR код менен төлөө</h2></div>
-    <div class="content">
-      <div class="tabs">
-        <div class="tab" data-goto="screen-qr-receive">Кодду көрсөтүү</div>
-        <div class="tab active" data-goto="screen-qr-pay">Сканерлөө</div>
+    <div id="qr-cam-view" class="qr-cam-view">
+      <div class="qr-cam-topbar">
+        <button class="qr-cam-icon-btn" data-goto="screen-dashboard" aria-label="Жабуу"><svg class="icon"><use href="#ic-close"/></svg></button>
+        <div class="qr-cam-tabs">
+          <div class="tab active" data-goto="screen-qr-pay">Сканерлөө</div>
+          <div class="tab" data-goto="screen-qr-receive">Кодду көрсөтүү</div>
+        </div>
+        <button class="qr-cam-icon-btn" id="qr-flash-btn" aria-label="Чырак"><svg class="icon"><use href="#ic-flash"/></svg></button>
       </div>
-      <p style="font-size:11.5px; color:var(--text-dim); margin:-6px 0 10px;" data-i18n="qr_scan_any">Каалаган QR кодду скандоо (башка банктар менен шайкеш)</p>
 
-      <div id="qr-scan-block">
+      <p class="qr-cam-hint" data-i18n="qr_scan_any">Камераны QR же штрих-кодго багыттаңыз</p>
+
+      <div class="qr-cam-frame">
         <div id="qr-reader"></div>
-        <button class="btn btn-secondary" id="qr-start-cam"><svg class="icon"><use href="#ic-camera"/></svg> Камераны иштетүү</button>
-        <div class="divider-line"></div>
-        <p style="font-size:12.5px; color:var(--text-dim); text-align:center; margin-bottom:10px;">же кодду кол менен киргизиңиз</p>
+        <div class="qr-cam-corner tl"></div><div class="qr-cam-corner tr"></div>
+        <div class="qr-cam-corner bl"></div><div class="qr-cam-corner br"></div>
+        <div class="qr-cam-placeholder" id="qr-cam-placeholder">
+          <svg class="icon" style="width:40px;height:40px;opacity:.5;"><use href="#ic-qr"/></svg>
+        </div>
+      </div>
+
+      <div class="qr-zoom-row">
+        <span class="qr-zoom-label">−</span>
+        <input type="range" id="qr-zoom-slider" class="qr-zoom-slider" min="1" max="3" step="0.1" value="1">
+        <span class="qr-zoom-label">+</span>
+      </div>
+
+      <div class="field-error" id="qr-scan-error" style="text-align:center;"></div>
+      <div class="qr-detect-card" id="qr-detect-card" style="display:none;"></div>
+
+      <div class="qr-cam-bottom-actions">
+        <button class="btn btn-secondary qr-pill-btn" data-goto="screen-qr-receive"><svg class="icon"><use href="#ic-qr"/></svg> Мой QR</button>
+        <button class="btn btn-secondary qr-pill-btn" id="qr-gallery-btn"><svg class="icon"><use href="#ic-gallery"/></svg> Из галереи</button>
+        <input type="file" id="qr-gallery-input" accept="image/*" style="display:none;">
+      </div>
+
+      <button class="qr-manual-link" id="qr-manual-toggle" type="button">Кодду кол менен киргизүү</button>
+      <div class="qr-manual-wrap" id="qr-manual-wrap" style="display:none;">
         <div class="field">
           <div class="input-wrap"><input type="text" id="qr-manual-code" placeholder="QR код тексти"></div>
         </div>
         <button class="btn btn-secondary" id="qr-manual-check">Текшерүү</button>
-        <div class="field-error" id="qr-scan-error"></div>
-        <div class="qr-detect-card" id="qr-detect-card" style="display:none;"></div>
       </div>
+    </div>
 
-      <div id="qr-pay-block" style="display:none; margin-top:18px;">
-        <div class="recipient-card">
-          <div class="avatar" id="qrpay-avatar">?</div>
-          <div class="ri"><b id="qrpay-recipient-name"></b><span id="qrpay-recipient-id"></span></div>
-        </div>
-        <div class="amount-input-wrap">
-          <input type="number" id="qrpay-amount" placeholder="0" inputmode="decimal">
-          <div class="currency-suffix">сом</div>
-        </div>
-        <div class="amount-quick">
-          <div class="chip" data-amt-qr="100">100</div>
-          <div class="chip" data-amt-qr="500">500</div>
-          <div class="chip" data-amt-qr="1000">1 000</div>
-          <div class="chip" data-amt-qr="5000">5 000</div>
-        </div>
-        <div class="field">
-          <label data-i18n="category_label">Категория</label>
-          <select class="cat-select" id="qrpay-category">
-            <option value="other">Башка</option>
-            <option value="food">Тамак-аш</option>
-            <option value="transport">Транспорт</option>
-            <option value="bills">Төлөмдөр</option>
-            <option value="entertainment">Көңүл ачуу</option>
-            <option value="shopping">Соода</option>
-            <option value="health">Ден соолук</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Эскертүү (милдеттүү эмес)</label>
-          <div class="input-wrap"><input type="text" id="qrpay-note" placeholder="Мис: Тамак үчүн" maxlength="140"></div>
-        </div>
-        <div class="field-error" id="qrpay-submit-error"></div>
-        <button class="btn btn-primary" id="qrpay-submit-btn">Төлөө</button>
+    <div id="qr-pay-block" class="content" style="display:none;">
+      <div class="screen-header" style="padding-left:0;padding-right:0;"><button class="back-btn" id="qrpay-back-btn"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>QR код менен төлөө</h2></div>
+      <div class="recipient-card">
+        <div class="avatar" id="qrpay-avatar">?</div>
+        <div class="ri"><b id="qrpay-recipient-name"></b><span id="qrpay-recipient-id"></span></div>
       </div>
+      <div class="amount-input-wrap">
+        <input type="number" id="qrpay-amount" placeholder="0" inputmode="decimal">
+        <div class="currency-suffix">сом</div>
+      </div>
+      <div class="amount-quick">
+        <div class="chip" data-amt-qr="100">100</div>
+        <div class="chip" data-amt-qr="500">500</div>
+        <div class="chip" data-amt-qr="1000">1 000</div>
+        <div class="chip" data-amt-qr="5000">5 000</div>
+      </div>
+      <div class="field">
+        <label data-i18n="category_label">Категория</label>
+        <select class="cat-select" id="qrpay-category">
+          <option value="other">Башка</option>
+          <option value="food">Тамак-аш</option>
+          <option value="transport">Транспорт</option>
+          <option value="bills">Төлөмдөр</option>
+          <option value="entertainment">Көңүл ачуу</option>
+          <option value="shopping">Соода</option>
+          <option value="health">Ден соолук</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Эскертүү (милдеттүү эмес)</label>
+        <div class="input-wrap"><input type="text" id="qrpay-note" placeholder="Мис: Тамак үчүн" maxlength="140"></div>
+      </div>
+      <div class="field-error" id="qrpay-submit-error"></div>
+      <button class="btn btn-primary" id="qrpay-submit-btn">Төлөө</button>
     </div>
   </section>
 

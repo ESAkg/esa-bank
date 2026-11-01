@@ -14,6 +14,8 @@ let state = {
 
 // ---------- Навигация ----------
 function goto(screenId) {
+  const prevActive = document.querySelector('.screen.active');
+  if (prevActive && prevActive.id === 'screen-qr-pay' && screenId !== 'screen-qr-pay') stopQrScanner();
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(screenId);
   if (el) el.classList.add('active');
@@ -744,12 +746,13 @@ async function loadMyQr() {
 // QR — SCAN / PAY (+ interoperability detection for other banks' QR formats)
 // ======================================================
 function resetQrPayForm() {
-  document.getElementById('qr-scan-block').style.display = 'block';
+  document.getElementById('qr-cam-view').style.display = 'flex';
   document.getElementById('qr-pay-block').style.display = 'none';
   document.getElementById('qr-manual-code').value = '';
+  document.getElementById('qr-manual-wrap').style.display = 'none';
   document.getElementById('qr-detect-card').style.display = 'none';
   setError('qr-scan-error', '');
-  stopQrScanner();
+  startQrScanner();
 }
 
 // Разбор QR в стандарте EMVCo "Merchant Presented Mode" (TLV: tag(2) + len(2) + value) —
@@ -798,7 +801,7 @@ async function handleQrPayload(payload) {
     document.getElementById('qrpay-avatar').textContent = initials(resolved.fullName);
     document.getElementById('qrpay-recipient-name').textContent = resolved.fullName;
     document.getElementById('qrpay-recipient-id').textContent = `${t('client_no')} ${resolved.clientId}`;
-    document.getElementById('qr-scan-block').style.display = 'none';
+    document.getElementById('qr-cam-view').style.display = 'none';
     document.getElementById('qr-pay-block').style.display = 'block';
     stopQrScanner();
   } catch (err) {
@@ -829,11 +832,65 @@ document.getElementById('qr-manual-check').addEventListener('click', () => {
   handleQrPayload(val);
 });
 
-document.getElementById('qr-start-cam').addEventListener('click', () => {
-  startQrScanner();
+document.getElementById('qr-manual-toggle').addEventListener('click', () => {
+  const wrap = document.getElementById('qr-manual-wrap');
+  wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+});
+
+document.getElementById('qrpay-back-btn').addEventListener('click', () => {
+  resetQrPayForm();
+});
+
+document.getElementById('qr-flash-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('qr-flash-btn');
+  const on = !btn.classList.contains('on');
+  try {
+    if (state.qrScanner && state.qrScanner.applyVideoConstraints) {
+      await state.qrScanner.applyVideoConstraints({ advanced: [{ torch: on }] });
+    }
+    btn.classList.toggle('on', on);
+    btn.querySelector('use').setAttribute('href', on ? '#ic-flash-off' : '#ic-flash');
+  } catch (_) {
+    // Бул түзмөктө/браузерде чырак (torch) колдоого алынбайт — коопсуз жокко чыгарабыз.
+  }
+});
+
+document.getElementById('qr-zoom-slider').addEventListener('input', async (e) => {
+  const zoom = parseFloat(e.target.value);
+  try {
+    if (state.qrScanner && state.qrScanner.applyVideoConstraints) {
+      await state.qrScanner.applyVideoConstraints({ advanced: [{ zoom }] });
+    }
+  } catch (_) { /* камера zoom-ду колдобойт — коопсуз этибарга албайбыз */ }
+});
+
+document.getElementById('qr-gallery-btn').addEventListener('click', () => {
+  document.getElementById('qr-gallery-input').click();
+});
+
+document.getElementById('qr-gallery-input').addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  if (typeof Html5Qrcode === 'undefined') {
+    setError('qr-scan-error', 'Камера китепканасы жүктөлгөн жок. Кодду кол менен киргизиңиз.');
+    return;
+  }
+  try {
+    const tempId = 'qr-gallery-scan-tmp';
+    let tempDiv = document.getElementById(tempId);
+    if (!tempDiv) { tempDiv = document.createElement('div'); tempDiv.id = tempId; tempDiv.style.display = 'none'; document.body.appendChild(tempDiv); }
+    const scanner = new Html5Qrcode(tempId);
+    const decodedText = await scanner.scanFile(file, false);
+    try { scanner.clear(); } catch (_) {}
+    handleQrPayload(decodedText);
+  } catch (_) {
+    setError('qr-scan-error', 'Сүрөттөн QR код табылган жок.');
+  }
+  e.target.value = '';
 });
 
 function startQrScanner() {
+  const placeholder = document.getElementById('qr-cam-placeholder');
   if (typeof Html5Qrcode === 'undefined') {
     setError('qr-scan-error', 'Камера китепканасы жүктөлгөн жок (жайлоого байланыштуу). Кодду кол менен киргизиңиз.');
     return;
@@ -845,12 +902,18 @@ function startQrScanner() {
     { fps: 10, qrbox: 220 },
     (decodedText) => { handleQrPayload(decodedText); },
     () => {}
-  ).catch(() => {
+  ).then(() => {
+    if (placeholder) placeholder.style.display = 'none';
+  }).catch(() => {
     setError('qr-scan-error', 'Камерага уруксат берилген жок. Кодду кол менен киргизиңиз.');
   });
 }
 
 function stopQrScanner() {
+  const placeholder = document.getElementById('qr-cam-placeholder');
+  if (placeholder) placeholder.style.display = 'flex';
+  const flashBtn = document.getElementById('qr-flash-btn');
+  if (flashBtn) { flashBtn.classList.remove('on'); const u = flashBtn.querySelector('use'); if (u) u.setAttribute('href', '#ic-flash'); }
   if (state.qrScanner) {
     try { state.qrScanner.stop().then(() => state.qrScanner.clear()).catch(()=>{}); } catch (_) {}
     state.qrScanner = null;
