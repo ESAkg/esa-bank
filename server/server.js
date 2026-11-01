@@ -536,6 +536,8 @@ function executeTransfer({ fromAccount, toAccount, fromUser, toUser, amount, met
     toName: toUser.fullName,
     fromClientId: fromUser.clientId,
     toClientId: toUser.clientId,
+    fromPhone: fromUser.phone,
+    toPhone: toUser.phone,
     amount,
     currency: 'KGS',
     method, // 'phone' | 'qr'
@@ -608,6 +610,7 @@ route('GET', '/api/transactions', async (req, res) => {
       id: t.id,
       direction: t.fromAccountId === account.id ? 'out' : 'in',
       counterparty: t.fromAccountId === account.id ? t.toName : t.fromName,
+      counterpartyPhone: t.fromAccountId === account.id ? (t.toPhone || null) : (t.fromPhone || null),
       amount: t.amount,
       currency: t.currency,
       method: t.method,
@@ -620,6 +623,24 @@ route('GET', '/api/transactions', async (req, res) => {
   sendJson(res, 200, { transactions: list });
 });
 
+// --- Удаление собственной учётной записи (владелец банка защищён от удаления) ---
+route('DELETE', '/api/me', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const account = findAccountByUserId(user.id);
+  if (account && account.isOwner) {
+    return sendJson(res, 400, { error: 'Банктын ээсинин аккаунтун өчүрүүгө болбойт (Нельзя удалить аккаунт владельца банка).' });
+  }
+  const d = db();
+  d.users = d.users.filter(u => u.id !== user.id);
+  if (account) d.accounts = d.accounts.filter(a => a.id !== account.id);
+  d.sessions = d.sessions.filter(s => s.userId !== user.id);
+  // Транзакции оставляем как есть (это исторические записи другой стороны тоже) —
+  // имена в них уже сохранены как снимок на момент перевода.
+  storeDb.save();
+  sendJson(res, 200, { ok: true });
+});
+
 // ---------- HTTP-сервер ----------
 
 const server = http.createServer(async (req, res) => {
@@ -629,7 +650,7 @@ const server = http.createServer(async (req, res) => {
   // CORS (на случай, если фронтенд когда-то будет на отдельном домене)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   if (pathname.startsWith('/api/')) {

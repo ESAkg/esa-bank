@@ -46,6 +46,10 @@
     <symbol id="ic-chat" viewBox="0 0 24 24"><path d="M4 5.5h16v10H9l-4 3.5v-3.5H4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
     <symbol id="ic-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 6.5 12 13l8.5-6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 2.5 19.5 6v6c0 5-3.2 8.3-7.5 9.5C7.7 20.3 4.5 17 4.5 12V6Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.7 12.2l2.2 2.2 4.4-4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.9l.06.06a2.1 2.1 0 1 1-3 3l-.06-.06a1.7 1.7 0 0 0-1.9-.34 1.7 1.7 0 0 0-1 1.55V20a2.1 2.1 0 1 1-4.2 0v-.1a1.7 1.7 0 0 0-1.1-1.55 1.7 1.7 0 0 0-1.9.34l-.06.06a2.1 2.1 0 1 1-3-3l.06-.06a1.7 1.7 0 0 0 .34-1.9 1.7 1.7 0 0 0-1.55-1H2a2.1 2.1 0 1 1 0-4.2h.1a1.7 1.7 0 0 0 1.55-1.1 1.7 1.7 0 0 0-.34-1.9l-.06-.06a2.1 2.1 0 1 1 3-3l.06.06a1.7 1.7 0 0 0 1.9.34H8.3a1.7 1.7 0 0 0 1-1.55V2a2.1 2.1 0 1 1 4.2 0v.1a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.9-.34l.06-.06a2.1 2.1 0 1 1 3 3l-.06.06a1.7 1.7 0 0 0-.34 1.9v.08a1.7 1.7 0 0 0 1.55 1H22a2.1 2.1 0 1 1 0 4.2h-.1a1.7 1.7 0 0 0-1.55 1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-repeat" viewBox="0 0 24 24"><path d="M4 11V8a3 3 0 0 1 3-3h11M18 3l3 2.5L18 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 13v3a3 3 0 0 1-3 3H6M6 21l-3-2.5L6 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="12" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="19" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.1 10.7 15.9 6.3M8.1 13.3l7.8 4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.8c0-.4.3-.8.8-.8h3.4c.4 0 .8.4.8.8V7M7 7l1 13a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ic-mountain-logo" viewBox="0 0 48 48"><circle cx="24" cy="24" r="24" fill="url(#g-logo)"/><path d="M8 32L18 16L24 26L29 18L40 32" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><defs><linearGradient id="g-logo" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#1f6feb"/><stop offset="1" stop-color="#0a1f3d"/></linearGradient></defs></symbol>
   </defs>
 </svg>
@@ -66,6 +70,7 @@
     <button class="side-item" data-goto="screen-stats"><svg class="icon"><use href="#ic-bolt"/></svg><span data-i18n="nav_stats">Көрсөткүчтөр</span></button>
     <button class="side-item" data-goto="screen-history"><svg class="icon"><use href="#ic-clock"/></svg><span data-i18n="nav_history">Тарых</span></button>
     <button class="side-item" data-goto="screen-profile"><svg class="icon"><use href="#ic-user"/></svg><span data-i18n="nav_profile">Жеке маалымат</span></button>
+    <button class="side-item" data-goto="screen-settings"><svg class="icon"><use href="#ic-shield"/></svg><span data-i18n="nav_settings">Орнотуулар</span></button>
     <button class="side-item" data-goto="screen-help"><svg class="icon"><use href="#ic-chat"/></svg><span data-i18n="nav_help">Жардам</span></button>
     <button class="side-item danger" id="sidebar-logout"><svg class="icon"><use href="#ic-close"/></svg><span data-i18n="nav_logout">Чыгуу</span></button>
   </nav>
@@ -641,17 +646,83 @@
         <div class="menu-row"><span class="mi"><svg class="icon"><use href="#ic-card"/></svg></span><span id="profile-account"></span></div>
         <div class="menu-row"><span class="mi"><svg class="icon"><use href="#ic-wallet"/></svg></span><span id="profile-balance"></span></div>
       </div>
-      <div style="height:14px;"></div>
-      <div class="lang-switch" style="width:fit-content; margin-bottom:14px;">
-        <button data-lang-btn="ky">KG</button>
-        <button data-lang-btn="ru">RU</button>
-        <button data-lang-btn="en">EN</button>
-      </div>
-      <button class="btn btn-secondary" id="profile-theme-btn" style="margin-bottom:14px;"><svg class="icon"><use href="#ic-moon" id="theme-icon-use-profile"/></svg> <span id="theme-btn-label" data-i18n="theme_dark">Караңгы тема</span></button>
+      <div style="height:6px;"></div>
+      <button class="btn btn-secondary" id="profile-settings-btn" style="margin-bottom:10px;"><svg class="icon"><use href="#ic-gear"/></svg> <span data-i18n="nav_settings">Орнотуулар</span></button>
       <button class="btn btn-danger" id="logout-btn" data-i18n="btn_logout">Чыгуу</button>
     </div>
   </section>
 
+  <!-- ===================== SETTINGS ===================== -->
+  <section class="screen" id="screen-settings">
+    <div class="screen-header"><button class="back-btn" data-goto="screen-profile"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2 data-i18n="screen_settings">Орнотуулар</h2></div>
+    <div class="content">
+
+      <div class="settings-group">
+        <div class="settings-row"><span class="si"><svg class="icon"><use href="#ic-sun"/></svg></span><div class="st"><b data-i18n="settings_theme">Тема</b></div>
+          <button class="btn btn-secondary btn-sm" id="settings-theme-btn" style="width:auto; padding:8px 14px;"><svg class="icon"><use href="#ic-moon" id="theme-icon-use-settings"/></svg></button>
+        </div>
+        <div class="settings-row"><span class="si"><svg class="icon"><use href="#ic-search"/></svg></span><div class="st"><b data-i18n="settings_language">Тил</b></div>
+          <div class="lang-switch">
+            <button data-lang-btn="ky">KG</button>
+            <button data-lang-btn="ru">RU</button>
+            <button data-lang-btn="en">EN</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-row"><span class="si"><svg class="icon"><use href="#ic-shield"/></svg></span><div class="st"><b data-i18n="settings_security">Коопсуздук</b><span data-i18n="settings_biometric">Биометрикалык кирүү</span></div>
+          <label class="switch"><input type="checkbox" id="toggle-biometric"><span class="switch-track"></span></label>
+        </div>
+        <div class="settings-row"><span class="si"><svg class="icon"><use href="#ic-bell"/></svg></span><div class="st"><b data-i18n="settings_notifications">Эскертүүлөр</b></div>
+          <label class="switch"><input type="checkbox" id="toggle-notifications" checked><span class="switch-track"></span></label>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-row"><span class="si"><svg class="icon"><use href="#ic-bolt"/></svg></span><div class="st"><b data-i18n="settings_limits">Лимиттер</b><span data-i18n="settings_limits_desc">Күндүк которуу лимити: 500 000 сом</span></div></div>
+        <div class="settings-row"><span class="si"><svg class="icon"><use href="#ic-user"/></svg></span><div class="st"><b data-i18n="settings_referral">Достарды чакыруу</b><span data-i18n="settings_referral_desc">Жакында</span></div></div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-row clickable danger" id="delete-account-row"><span class="si"><svg class="icon"><use href="#ic-trash"/></svg></span><div class="st"><b data-i18n="settings_delete_account">Аккаунтту өчүрүү</b></div></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ===================== TRANSACTION DETAIL MODAL ===================== -->
+<div class="modal-overlay" id="tx-detail-modal">
+  <div class="modal-sheet">
+    <button class="modal-close-x" data-close-modal="tx-detail-modal"><svg class="icon" style="width:15px;height:15px;"><use href="#ic-close"/></svg></button>
+    <div class="modal-handle"></div>
+    <h3 data-i18n="tx_detail_title">Транзакция тууралуу маалымат</h3>
+    <div class="receipt-card" style="margin:0 0 4px; padding:14px 2px 2px; box-shadow:none; border:none;">
+      <div class="receipt-row"><span class="k" data-i18n="tx_date">Дата жана убакыт</span><span class="v" id="txd-date"></span></div>
+      <div class="receipt-row"><span class="k" data-i18n="tx_receipt_no">Чек номери</span><span class="v" id="txd-receipt"></span></div>
+      <div class="receipt-row"><span class="k" data-i18n="tx_recipient">Алуучу</span><span class="v" id="txd-recipient"></span></div>
+      <div class="receipt-row"><span class="k" data-i18n="tx_amount">Сумма</span><span class="v" id="txd-amount"></span></div>
+      <div class="receipt-row" id="txd-note-row"><span class="k" data-i18n="tx_purpose">Максаты</span><span class="v" id="txd-note"></span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="txd-repeat-btn"><svg class="icon"><use href="#ic-repeat"/></svg> <span data-i18n="tx_repeat">Кайталоо</span></button>
+      <button class="btn btn-secondary" id="txd-share-btn"><svg class="icon"><use href="#ic-share"/></svg> <span data-i18n="tx_share">Бөлүшүү</span></button>
+    </div>
+    <div class="share-disclaimer" data-i18n="share_not_official">ESA Bank тиркемесинин ички маалыматы. Расмий документ эмес.</div>
+  </div>
+</div>
+
+<!-- ===================== CONFIRM MODAL (generic) ===================== -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3 id="confirm-modal-text"></h3>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="confirm-modal-no"></button>
+      <button class="btn btn-danger" id="confirm-modal-yes"></button>
+    </div>
+  </div>
 </div>
 
 <div id="toast-host"></div>

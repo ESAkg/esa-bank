@@ -27,6 +27,7 @@ function goto(screenId) {
   if (screenId === 'screen-profile') loadProfile();
   if (screenId === 'screen-stats') loadStatsScreen();
   if (screenId === 'screen-cards') loadCardsScreen();
+  if (screenId === 'screen-settings') { /* статичный экран, данные не нужны */ }
   if (screenId === 'screen-transfer-phone') resetTransferPhoneForm();
   if (screenId === 'screen-qr-pay') resetQrPayForm();
 }
@@ -89,19 +90,16 @@ function getTheme() {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   const isLight = theme === 'light';
-  document.querySelectorAll('#theme-icon-use, #theme-icon-use-mobile, #theme-icon-use-profile').forEach(use => {
+  document.querySelectorAll('#theme-icon-use, #theme-icon-use-mobile, #theme-icon-use-settings').forEach(use => {
     use.setAttribute('href', isLight ? '#ic-sun' : '#ic-moon');
   });
-  const label = document.getElementById('theme-btn-label');
-  if (label) label.textContent = isLight ? t('theme_dark') : t('theme_light'); // показываем действие, в которое переключит
-  if (label) label.dataset.i18n = isLight ? 'theme_dark' : 'theme_light';
 }
 function toggleTheme() {
   const next = getTheme() === 'light' ? 'dark' : 'light';
   localStorage.setItem('esa_theme', next);
   applyTheme(next);
 }
-['theme-toggle-btn', 'theme-toggle-btn-mobile', 'profile-theme-btn'].forEach(id => {
+['theme-toggle-btn', 'theme-toggle-btn-mobile', 'settings-theme-btn'].forEach(id => {
   document.getElementById(id) && document.getElementById(id).addEventListener('click', toggleTheme);
 });
 applyTheme(getTheme());
@@ -296,6 +294,102 @@ function doLogout() {
 }
 document.getElementById('logout-btn').addEventListener('click', doLogout);
 document.getElementById('sidebar-logout').addEventListener('click', doLogout);
+document.getElementById('profile-settings-btn').addEventListener('click', () => goto('screen-settings'));
+
+// ======================================================
+// GENERIC MODALS (transaction detail, confirm dialog)
+// ======================================================
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.addEventListener('click', (e) => {
+  const closeBtn = e.target.closest('[data-close-modal]');
+  if (closeBtn) { closeModal(closeBtn.dataset.closeModal); return; }
+  if (e.target.classList.contains('modal-overlay')) { e.target.classList.remove('show'); }
+});
+
+function showConfirm(text, yesLabel, onYes) {
+  document.getElementById('confirm-modal-text').textContent = text;
+  document.getElementById('confirm-modal-yes').textContent = yesLabel || t('confirm_yes');
+  document.getElementById('confirm-modal-no').textContent = t('confirm_no');
+  const yesBtn = document.getElementById('confirm-modal-yes');
+  const newYesBtn = yesBtn.cloneNode(true); // снимаем старые обработчики перед навешиванием нового
+  yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+  newYesBtn.addEventListener('click', () => { closeModal('confirm-modal'); onYes(); });
+  document.getElementById('confirm-modal-no').onclick = () => closeModal('confirm-modal');
+  openModal('confirm-modal');
+}
+
+// ======================================================
+// TRANSACTION DETAIL (tap a history row)
+// ======================================================
+let txCache = {};
+let lastOpenedTx = null;
+
+document.addEventListener('click', (e) => {
+  const row = e.target.closest('.tx-row[data-tx-id]');
+  if (!row) return;
+  const tx = txCache[row.dataset.txId];
+  if (tx) openTxDetail(tx);
+});
+
+function openTxDetail(tx) {
+  lastOpenedTx = tx;
+  const sign = tx.direction === 'in' ? '+' : '-';
+  document.getElementById('txd-date').textContent = formatDateShort(tx.createdAt);
+  document.getElementById('txd-receipt').textContent = tx.receiptNo || '—';
+  document.getElementById('txd-recipient').textContent = tx.counterparty;
+  document.getElementById('txd-amount').textContent = `${sign} ${formatMoney(tx.amount)} сом`;
+  const noteRow = document.getElementById('txd-note-row');
+  if (tx.note) { noteRow.style.display = 'flex'; document.getElementById('txd-note').textContent = tx.note; }
+  else { noteRow.style.display = 'none'; }
+  const repeatBtn = document.getElementById('txd-repeat-btn');
+  repeatBtn.style.display = (tx.direction === 'out' && tx.method === 'phone' && tx.counterpartyPhone) ? 'flex' : 'none';
+  openModal('tx-detail-modal');
+}
+
+document.getElementById('txd-repeat-btn').addEventListener('click', () => {
+  if (!lastOpenedTx || !lastOpenedTx.counterpartyPhone) return;
+  closeModal('tx-detail-modal');
+  goto('screen-transfer-phone');
+  document.getElementById('transfer-phone').value = lastOpenedTx.counterpartyPhone;
+  document.getElementById('form-transfer-lookup').requestSubmit();
+  setTimeout(() => {
+    document.getElementById('transfer-amount').value = lastOpenedTx.amount;
+    document.getElementById('transfer-category').value = lastOpenedTx.category || 'other';
+    document.getElementById('transfer-note').value = lastOpenedTx.note || '';
+  }, 400);
+});
+
+document.getElementById('txd-share-btn').addEventListener('click', async () => {
+  if (!lastOpenedTx) return;
+  const tx = lastOpenedTx;
+  const sign = tx.direction === 'in' ? '+' : '-';
+  const text = `ESA Bank\n${formatDateShort(tx.createdAt)}\n${tx.counterparty}: ${sign}${formatMoney(tx.amount)} сом\n${t('tx_receipt_no')}: ${tx.receiptNo || '—'}\n\n${t('share_not_official')}`;
+  if (navigator.share) {
+    try { await navigator.share({ text }); } catch (_) {}
+  } else if (navigator.clipboard) {
+    try { await navigator.clipboard.writeText(text); toast(t('copied_clipboard'), 'success'); } catch (_) {}
+  }
+});
+
+// ======================================================
+// SETTINGS: delete account
+// ======================================================
+document.getElementById('delete-account-row').addEventListener('click', () => {
+  if (state.user && state.user.account && state.user.account.isOwner) {
+    toast(t('settings_delete_owner_blocked'), 'error');
+    return;
+  }
+  showConfirm(t('settings_delete_confirm'), t('confirm_yes'), async () => {
+    try {
+      await api('DELETE', '/me');
+      toast(t('copied_clipboard') === 'Copied' ? 'Account deleted.' : 'Аккаунт өчүрүлдү.', 'success');
+      doLogout();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
+});
 
 // ======================================================
 // DASHBOARD
@@ -367,12 +461,13 @@ function renderTxList(containerId, list) {
     container.innerHTML = `<div class="empty-state"><div class="ei"><svg class="icon"><use href="#ic-receipt"/></svg></div>${t('no_ops')}</div>`;
     return;
   }
+  list.forEach(tx => { txCache[tx.id] = tx; });
   container.innerHTML = list.map(tx => {
     const sign = tx.direction === 'in' ? '+' : '-';
     const iconName = tx.direction === 'in' ? 'arrow-down' : 'arrow-up';
     const methodLabel = tx.method === 'qr' ? 'QR код' : 'Телефон номери';
     return `
-      <div class="tx-row">
+      <div class="tx-row" data-tx-id="${tx.id}" style="cursor:pointer;">
         <div class="tx-icon ${tx.direction}"><svg class="icon"><use href="#ic-${iconName}"/></svg></div>
         <div class="tx-main">
           <div class="name">${escapeHtml(tx.counterparty)}</div>
