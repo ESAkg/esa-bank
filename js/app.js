@@ -70,7 +70,7 @@ async function api(method, path, body, auth = true) {
   let data;
   try { data = await res.json(); } catch (_) { data = {}; }
   if (!res.ok) {
-    const err = new Error(data.error || 'Ката кетти');
+    const err = new Error(data.error || t('err_generic'));
     err.status = res.status;
     err.data = data;
     throw err;
@@ -137,6 +137,7 @@ document.addEventListener('langchange', () => {
   if (document.getElementById('screen-history').classList.contains('active')) loadHistory();
 });
 applyTranslations();
+document.title = `${t('app_name')} — ${t('app_tagline')}`;
 
 // ======================================================
 // AUTH: LOGIN
@@ -147,14 +148,15 @@ document.getElementById('form-login').addEventListener('submit', async (e) => {
   const phone = document.getElementById('login-phone').value.trim();
   const password = document.getElementById('login-password').value;
   const btn = document.getElementById('login-submit');
-  btn.disabled = true; btn.textContent = 'Кирүү...';
+  const btnLabel = btn.querySelector('span');
+  btn.disabled = true; if (btnLabel) btnLabel.textContent = t('login_loading');
   try {
     const data = await api('POST', '/auth/login', { phone, password }, false);
     onAuthSuccess(data);
   } catch (err) {
     setError('login-error', err.message);
   } finally {
-    btn.disabled = false; btn.textContent = t('btn_login');
+    btn.disabled = false; if (btnLabel) btnLabel.textContent = t('btn_login');
   }
 });
 
@@ -182,7 +184,7 @@ document.getElementById('form-register-step1').addEventListener('submit', (e) =>
   setError('register-step1-error', '');
   const fullName = document.getElementById('reg-name').value.trim();
   const phone = document.getElementById('reg-phone').value.trim();
-  if (fullName.length < 3) { setError('register-step1-error', 'Атыңызды толук киргизиңиз.'); return; }
+  if (fullName.length < 3) { setError('register-step1-error', t('err_fullname_required')); return; }
   regData = { fullName, phone };
   document.getElementById('reg-step-1-block').style.display = 'none';
   document.getElementById('reg-step-2-block').style.display = 'block';
@@ -218,18 +220,18 @@ document.getElementById('form-register-step2').addEventListener('submit', async 
   const password2 = document.getElementById('reg-password2').value;
 
   if (!checkPwRules()) {
-    setError('register-step2-error', 'Сырсөз талаптарга жооп бериш керек.');
+    setError('register-step2-error', t('err_pw_rules'));
     return;
   }
   if (password !== password2) {
-    setError('register-step2-error', 'Сырсөздөр дал келген жок (Пароли не совпадают).');
+    setError('register-step2-error', t('err_pw_mismatch'));
     return;
   }
   const btn = document.getElementById('register-submit');
-  btn.disabled = true; btn.textContent = 'Катталууда...';
+  btn.disabled = true; btn.textContent = t('register_loading');
   try {
     const data = await api('POST', '/auth/register', { fullName: regData.fullName, phone: regData.phone, password }, false);
-    toast('Аккаунт ийгиликтүү түзүлдү! Кош келиңиз.', 'success');
+    toast(t('account_created_toast'), 'success');
     resetRegisterForm();
     onAuthSuccess(data);
   } catch (err) {
@@ -253,7 +255,7 @@ document.getElementById('form-forgot-phone').addEventListener('submit', async (e
     forgotPhoneCache = phone;
     document.getElementById('forgot-phone-display').textContent = phone;
     document.getElementById('forgot-demo-code').textContent =
-      `Текшерүү коду: ${data.demoCode} (жарактуу: ${Math.round(data.expiresInSec/60)} мүнөт).`;
+      tf('demo_code_line', { code: data.demoCode, min: Math.round(data.expiresInSec/60) });
     document.getElementById('forgot-step-1').style.display = 'none';
     document.getElementById('forgot-step-2').style.display = 'block';
   } catch (err) {
@@ -266,8 +268,8 @@ document.getElementById('forgot-resend').addEventListener('click', async (e) => 
   try {
     const data = await api('POST', '/auth/forgot-password', { phone: forgotPhoneCache }, false);
     document.getElementById('forgot-demo-code').textContent =
-      `Жаңы текшерүү коду: ${data.demoCode}.`;
-    toast('Жаңы код жөнөтүлдү', 'success');
+      tf('demo_code_resend_line', { code: data.demoCode });
+    toast(t('forgot_resend'), 'success');
   } catch (err) {
     toast(err.message, 'error');
   }
@@ -280,7 +282,7 @@ document.getElementById('form-forgot-reset').addEventListener('submit', async (e
   const newPassword = document.getElementById('forgot-newpass').value;
   try {
     await api('POST', '/auth/reset-password', { phone: forgotPhoneCache, code, newPassword }, false);
-    toast('Сырсөз ийгиликтүү жаңыртылды. Эми кирсеңиз болот.', 'success');
+    toast(t('pw_updated_toast'), 'success');
     document.getElementById('forgot-step-1').style.display = 'block';
     document.getElementById('forgot-step-2').style.display = 'none';
     document.getElementById('form-forgot-phone').reset();
@@ -401,7 +403,7 @@ document.getElementById('delete-account-row').addEventListener('click', () => {
   showConfirm(t('settings_delete_confirm'), t('confirm_yes'), async () => {
     try {
       await api('DELETE', '/me');
-      toast(t('copied_clipboard') === 'Copied' ? 'Account deleted.' : 'Аккаунт өчүрүлдү.', 'success');
+      toast(t('account_deleted_toast'), 'success');
       doLogout();
     } catch (err) {
       toast(err.message, 'error');
@@ -419,13 +421,13 @@ async function loadDashboard() {
     applyUserChrome(user);
 
     document.getElementById('dash-firstname').textContent = firstName(user.fullName);
-    document.getElementById('dash-balance').textContent = user.account.isOwner ? 'Безлимиттүү' : formatMoney(user.account.balance);
+    document.getElementById('dash-balance').textContent = user.account.isOwner ? t('unlimited') : formatMoney(user.account.balance);
     document.getElementById('dash-balance-suffix').style.display = user.account.isOwner ? 'none' : '';
     document.getElementById('dash-account').textContent = user.account.accountNumber;
     document.getElementById('dash-date').textContent = formatDateHuman(new Date());
 
     // Карта привязана к тому же счёту (как в реальном банке — дебетовая карта = счёт)
-    document.getElementById('dash-card-balance').textContent = user.account.isOwner ? 'Безлимиттүү' : formatMoney(user.account.balance);
+    document.getElementById('dash-card-balance').textContent = user.account.isOwner ? t('unlimited') : formatMoney(user.account.balance);
     document.getElementById('dash-card-suffix').style.display = user.account.isOwner ? 'none' : '';
     // Депозит — отдельный продукт, пока не открыт ни у одного клиента (честно показываем 0, не выдумываем)
     document.getElementById('dash-deposit-balance').textContent = '0.00';
@@ -453,7 +455,7 @@ function forceLogout() {
   localStorage.removeItem('esa_token');
   document.body.classList.remove('app-shell');
   goto('screen-login');
-  toast('Сессия аяктады, кайра кириңиз', 'error');
+  toast(t('session_expired_toast'), 'error');
 }
 
 function firstName(full) {
@@ -483,7 +485,7 @@ function renderTxList(containerId, list) {
   container.innerHTML = list.map(tx => {
     const sign = tx.direction === 'in' ? '+' : '-';
     const iconName = tx.direction === 'in' ? 'arrow-down' : 'arrow-up';
-    const methodLabel = tx.method === 'qr' ? 'QR код' : 'Телефон номери';
+    const methodLabel = tx.method === 'qr' ? t('method_qr_short') : t('field_phone');
     return `
       <div class="tx-row" data-tx-id="${tx.id}" style="cursor:pointer;">
         <div class="tx-icon ${tx.direction}"><svg class="icon"><use href="#ic-${iconName}"/></svg></div>
@@ -627,7 +629,7 @@ function formatCompactMoney(n) {
 async function loadCardsScreen() {
   try {
     const { user } = await api('GET', '/me');
-    const bal = user.account.isOwner ? 'Безлимиттүү' : formatMoney(user.account.balance);
+    const bal = user.account.isOwner ? t('unlimited') : formatMoney(user.account.balance);
     document.getElementById('cards-acc-balance').textContent = bal;
     document.getElementById('cards-card-balance').textContent = bal;
     document.getElementById('cards-acc-no').textContent = user.account.accountNumber;
@@ -663,7 +665,7 @@ async function loadProfile() {
     document.getElementById('profile-phone').textContent = user.phoneFormatted;
     document.getElementById('profile-account').textContent = user.account.accountNumber;
     document.getElementById('profile-balance').textContent = user.account.isOwner
-      ? 'Безлимиттүү (банк ээси)'
+      ? t('unlimited_owner')
       : formatMoney(user.account.balance) + ' сом';
   } catch (err) {
     if (err.status === 401) { forceLogout(); return; }
@@ -688,7 +690,7 @@ document.getElementById('form-transfer-lookup').addEventListener('submit', async
   setError('transfer-lookup-error', '');
   const phone = document.getElementById('transfer-phone').value.trim();
   const btn = document.getElementById('transfer-lookup-btn');
-  btn.disabled = true; btn.textContent = 'Текшерилүүдө...';
+  btn.disabled = true; btn.textContent = t('checking_loading');
   try {
     const recipient = await api('POST', '/transfer/lookup-phone', { phone });
     state.pendingRecipient = { ...recipient, phone };
@@ -700,7 +702,7 @@ document.getElementById('form-transfer-lookup').addEventListener('submit', async
   } catch (err) {
     setError('transfer-lookup-error', err.message);
   } finally {
-    btn.disabled = false; btn.textContent = 'Алуучуну текшерүү';
+    btn.disabled = false; btn.textContent = t('check_recipient_btn');
   }
 });
 
@@ -716,7 +718,7 @@ document.getElementById('transfer-submit-btn').addEventListener('click', async (
   const note = document.getElementById('transfer-note').value.trim();
   const category = document.getElementById('transfer-category').value;
   if (!amount || amount <= 0) {
-    setError('transfer-submit-error', 'Сумманы туура киргизиңиз.');
+    setError('transfer-submit-error', t('err_enter_valid_amount'));
     return;
   }
   const recipientLabel = state.pendingRecipient.fullName;
@@ -814,8 +816,8 @@ async function handleQrPayload(payload) {
       let html = '';
       if (bankLabel) html += `<div class="bank-badge"><svg class="icon" style="width:14px;height:14px;"><use href="#ic-qr"/></svg>${escapeHtml(bankLabel)}</div><br>`;
       else html += `<div class="bank-badge"><svg class="icon" style="width:14px;height:14px;"><use href="#ic-qr"/></svg>EMVCo QR</div><br>`;
-      if (emv && emv.merchantName) html += `${t('category_label') === 'Категория' ? 'Алуучу' : 'Recipient'}: <b>${escapeHtml(emv.merchantName)}</b><br>`;
-      if (emv && emv.amount) html += `Сумма: <b>${formatMoney(emv.amount)}</b><br>`;
+      if (emv && emv.merchantName) html += `${t('tx_recipient')}: <b>${escapeHtml(emv.merchantName)}</b><br>`;
+      if (emv && emv.amount) html += `${t('tx_amount')}: <b>${formatMoney(emv.amount)}</b><br>`;
       html += t('qr_unknown_format');
       card.innerHTML = html;
       card.style.display = 'block';
@@ -828,7 +830,7 @@ async function handleQrPayload(payload) {
 
 document.getElementById('qr-manual-check').addEventListener('click', () => {
   const val = document.getElementById('qr-manual-code').value.trim();
-  if (!val) { setError('qr-scan-error', 'QR кодду киргизиңиз.'); return; }
+  if (!val) { setError('qr-scan-error', t('err_enter_qr_code')); return; }
   handleQrPayload(val);
 });
 
@@ -872,7 +874,7 @@ document.getElementById('qr-gallery-input').addEventListener('change', async (e)
   const file = e.target.files && e.target.files[0];
   if (!file) return;
   if (typeof Html5Qrcode === 'undefined') {
-    setError('qr-scan-error', 'Камера китепканасы жүктөлгөн жок. Кодду кол менен киргизиңиз.');
+    setError('qr-scan-error', t('err_cam_lib_missing'));
     return;
   }
   try {
@@ -884,7 +886,7 @@ document.getElementById('qr-gallery-input').addEventListener('change', async (e)
     try { scanner.clear(); } catch (_) {}
     handleQrPayload(decodedText);
   } catch (_) {
-    setError('qr-scan-error', 'Сүрөттөн QR код табылган жок.');
+    setError('qr-scan-error', t('err_qr_not_found_in_image'));
   }
   e.target.value = '';
 });
@@ -892,7 +894,7 @@ document.getElementById('qr-gallery-input').addEventListener('change', async (e)
 function startQrScanner() {
   const placeholder = document.getElementById('qr-cam-placeholder');
   if (typeof Html5Qrcode === 'undefined') {
-    setError('qr-scan-error', 'Камера китепканасы жүктөлгөн жок (жайлоого байланыштуу). Кодду кол менен киргизиңиз.');
+    setError('qr-scan-error', t('err_cam_lib_missing_net'));
     return;
   }
   stopQrScanner();
@@ -905,7 +907,7 @@ function startQrScanner() {
   ).then(() => {
     if (placeholder) placeholder.style.display = 'none';
   }).catch(() => {
-    setError('qr-scan-error', 'Камерага уруксат берилген жок. Кодду кол менен киргизиңиз.');
+    setError('qr-scan-error', t('err_cam_permission_denied'));
   });
 }
 
@@ -932,7 +934,7 @@ document.getElementById('qrpay-submit-btn').addEventListener('click', async () =
   const note = document.getElementById('qrpay-note').value.trim();
   const category = document.getElementById('qrpay-category').value;
   if (!amount || amount <= 0) {
-    setError('qrpay-submit-error', 'Сумманы туура киргизиңиз.');
+    setError('qrpay-submit-error', t('err_enter_valid_amount'));
     return;
   }
   const recipientLabel = state.pendingQrRecipient.fullName;
@@ -970,18 +972,18 @@ function showResult(data, errorObj, amount, recipientLabel, note) {
     circle.className = 'status-circle fail';
     circle.innerHTML = '<svg class="icon icon-lg"><use href="#ic-close"/></svg>';
     statusText.className = 'result-status-text fail';
-    statusText.textContent = 'Которуу аткарылган жок';
+    statusText.textContent = t('tx_failed_status');
     document.getElementById('result-amount').textContent = `- ${formatMoney(amount)} сом`;
-    document.getElementById('result-sub').textContent = errorObj.message || 'Белгисиз ката';
+    document.getElementById('result-sub').textContent = errorObj.message || t('err_unknown');
     receiptCard.style.display = 'none';
   } else {
     const tx = data.transaction;
     circle.className = 'status-circle success';
     circle.innerHTML = '<svg class="icon icon-lg"><use href="#ic-check"/></svg>';
     statusText.className = 'result-status-text success';
-    statusText.textContent = 'Транзакция ийгиликтүү аткарылды';
+    statusText.textContent = t('tx_success_status');
     document.getElementById('result-amount').textContent = `- ${formatMoney(tx.amount)} сом`;
-    document.getElementById('result-sub').textContent = tx.method === 'qr' ? 'QR код менен которуу' : 'Телефон номери менен которуу';
+    document.getElementById('result-sub').textContent = tx.method === 'qr' ? t('method_qr_full') : t('method_phone_full');
     receiptCard.style.display = 'block';
     document.getElementById('r-date').textContent = formatDateShort(tx.createdAt);
     document.getElementById('r-receipt').textContent = tx.receiptNo;
@@ -1003,7 +1005,7 @@ function showNotifBanner(title, body) {
   const banner = document.getElementById('notif-banner');
   if (!banner) return;
   document.getElementById('nb-title-text').textContent = title;
-  document.getElementById('nb-time-text').textContent = 'сейчас';
+  document.getElementById('nb-time-text').textContent = t('time_now');
   document.getElementById('nb-body-text').textContent = body;
   banner.classList.add('show');
   clearTimeout(banner._hideTimer);
@@ -1052,7 +1054,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 async function triggerInstall() {
   if (!state.deferredInstallPrompt) {
-    toast('Тиркемени орнотуу үчүн браузердин менюсунан "Добавить на главный экран" тандаңыз.', 'success');
+    toast(tf('install_instructions_toast', { menu: t('install_menu_item') }), 'success');
     return;
   }
   state.deferredInstallPrompt.prompt();

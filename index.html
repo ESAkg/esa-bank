@@ -53,6 +53,7 @@
     <symbol id="ic-gallery" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.3" cy="9.3" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 17l5.2-5.2a2 2 0 0 1 2.8 0L15 14.8M14 13.8l1.6-1.6a2 2 0 0 1 2.8 0L21 14.9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
     <symbol id="ic-flash" viewBox="0 0 24 24"><path d="M12.5 2 4 14h6l-1 8 9.5-13h-6l1-7Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
     <symbol id="ic-flash-off" viewBox="0 0 24 24"><path d="M12.5 2 7.3 10.4M9.4 14H4l5.5-7.7M13.4 9l4.1-5-1 7h6l-6 8.2M15.5 13.5 11.5 19l1-6M3 3l18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="ic-mountain-logo" viewBox="0 0 48 48">
       <circle cx="24" cy="24" r="24" fill="url(#g-logo)"/>
       <circle cx="24" cy="24" r="22.6" fill="none" stroke="url(#g-logo-ring)" stroke-width="1.3" opacity="0.9"/>
@@ -121,48 +122,39 @@
 
   <!-- ===================== LOGIN ===================== -->
   <section class="screen active" id="screen-login">
-    <div class="auth-screen gold-theme">
-      <div class="gold-swoosh" aria-hidden="true">
-        <svg viewBox="0 0 400 500" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M-20 60 C 40 0, 90 10, 60 70 C 30 130, 120 90, 150 20" fill="none" stroke="url(#gs1)" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
-          <path d="M-30 90 C 30 30, 70 50, 45 100" fill="none" stroke="url(#gs1)" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
-          <path d="M420 440 C 360 500, 310 490, 340 430 C 370 370, 280 410, 250 480" fill="none" stroke="url(#gs2)" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
-          <defs>
-            <linearGradient id="gs1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe8a3"/><stop offset="1" stop-color="#d4a62a"/></linearGradient>
-            <linearGradient id="gs2" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#d4a62a"/><stop offset="1" stop-color="#ffe8a3"/></linearGradient>
-          </defs>
-        </svg>
-      </div>
-      <div class="auth-building" aria-hidden="true">
-        <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
-          <rect x="230" y="30" width="100" height="170" fill="url(#bld1)"/>
-          <rect x="300" y="70" width="70" height="130" fill="url(#bld2)"/>
-          <g fill="#ffe8a3" opacity="0.55">
-            <rect x="240" y="45" width="8" height="8"/><rect x="258" y="45" width="8" height="8"/><rect x="276" y="45" width="8" height="8"/><rect x="294" y="45" width="8" height="8"/>
-            <rect x="240" y="65" width="8" height="8"/><rect x="276" y="65" width="8" height="8"/><rect x="294" y="65" width="8" height="8"/>
-            <rect x="240" y="85" width="8" height="8"/><rect x="258" y="85" width="8" height="8"/><rect x="294" y="85" width="8" height="8"/>
-            <rect x="240" y="105" width="8" height="8"/><rect x="258" y="105" width="8" height="8"/><rect x="276" y="105" width="8" height="8"/>
-            <rect x="310" y="90" width="7" height="7"/><rect x="325" y="90" width="7" height="7"/><rect x="340" y="90" width="7" height="7"/><rect x="355" y="90" width="7" height="7"/>
-            <rect x="310" y="110" width="7" height="7"/><rect x="340" y="110" width="7" height="7"/><rect x="355" y="110" width="7" height="7"/>
+    <div class="auth-screen scenic-theme">
+      <div class="scenic-bg" aria-hidden="true">
+        <svg viewBox="0 0 400 320" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+          <rect width="400" height="320" fill="url(#sky)"/>
+          <circle cx="330" cy="46" r="3" fill="#fff" opacity=".8"/><circle cx="60" cy="30" r="2" fill="#fff" opacity=".6"/>
+          <circle cx="110" cy="55" r="1.6" fill="#fff" opacity=".5"/><circle cx="260" cy="24" r="1.6" fill="#fff" opacity=".6"/>
+          <path d="M0 200 L60 110 L105 150 L165 70 L210 140 L255 95 L300 150 L340 105 L400 190 L400 320 L0 320 Z" fill="url(#mtn-back)"/>
+          <path d="M150 72 L165 70 L185 100 L172 97 L160 112 L148 97 L135 100 Z" fill="#eef4ff" opacity=".9"/>
+          <path d="M0 230 L80 160 L140 200 L200 140 L260 205 L330 165 L400 225 L400 320 L0 320 Z" fill="url(#mtn-front)"/>
+          <g opacity=".55" fill="#07162c">
+            <path d="M24 320 L34 250 L40 262 L46 240 L52 262 L58 250 L68 320 Z"/>
+            <path d="M330 320 L340 245 L347 258 L354 235 L361 258 L368 245 L380 320 Z"/>
+            <path d="M-10 320 L-2 270 L3 280 L8 265 L13 280 L18 270 L26 320 Z"/>
           </g>
+          <path d="M0 268 Q100 250 200 268 T400 268 L400 320 L0 320 Z" fill="url(#lake)"/>
+          <path d="M150 270 L165 290 L185 272 L172 298 L160 280 L148 298 Z" fill="#dce8ff" opacity=".18"/>
           <defs>
-            <linearGradient id="bld1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c3f73"/><stop offset="1" stop-color="#0a1f3d"/></linearGradient>
-            <linearGradient id="bld2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#153363"/><stop offset="1" stop-color="#081a35"/></linearGradient>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a1f3d"/><stop offset=".55" stop-color="#163a6e"/><stop offset="1" stop-color="#2a5a9e"/></linearGradient>
+            <linearGradient id="mtn-back" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d5c9e"/><stop offset="1" stop-color="#17386b"/></linearGradient>
+            <linearGradient id="mtn-front" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c4784"/><stop offset="1" stop-color="#0a1f3d"/></linearGradient>
+            <linearGradient id="lake" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d2140"/><stop offset="1" stop-color="#050f1f"/></linearGradient>
           </defs>
         </svg>
+        <div class="scenic-fade"></div>
       </div>
-      <div class="auth-hero" style="margin-top:-18px;">
-        <svg class="e-logo-mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <path d="M72 20 H34 a10 10 0 0 0 -10 10 v10 a10 10 0 0 0 10 10 h22 a10 10 0 0 1 10 10 v10 a10 10 0 0 1 -10 10 H28" fill="none" stroke="url(#elogo)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M18 70 C 40 86, 70 82, 84 58" fill="none" stroke="url(#elogo2)" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
-          <defs>
-            <linearGradient id="elogo" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b9c6da"/></linearGradient>
-            <linearGradient id="elogo2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d4a62a"/><stop offset="1" stop-color="#ffe8a3"/></linearGradient>
-          </defs>
-        </svg>
+
+      <div class="auth-hero">
+        <div class="app-icon-badge">
+          <svg viewBox="0 0 48 48"><use href="#ic-mountain-logo"/></svg>
+        </div>
         <div class="auth-wordmark">
-          <div class="line1">ESA <span class="gold">BANK</span></div>
-          <div class="line2" data-i18n="app_tagline">Сенин ишенимдүү банкың</div>
+          <div class="line1 plain">ESA Bank</div>
+          <div class="tagline-row"><span></span><span class="line2" data-i18n="app_tagline">Сенин ишенимдүү банкың</span><span></span></div>
         </div>
       </div>
       <div class="lang-switch" style="justify-content:center; margin:18px auto 16px; width:fit-content; position:relative; z-index:1;">
@@ -170,19 +162,19 @@
         <button data-lang-btn="ru">RU</button>
         <button data-lang-btn="en">EN</button>
       </div>
-      <div class="auth-title" data-i18n="btn_login" style="position:relative; z-index:1;">Кирүү</div>
-      <div class="auth-subtitle" style="position:relative; z-index:1;">Аккаунтуңузга кирүү үчүн маалыматыңызды киргизиңиз</div>
+      <div class="auth-title accent" data-i18n="btn_login" style="position:relative; z-index:1;">Кирүү</div>
+      <div class="auth-subtitle" data-i18n="login_subtitle" style="position:relative; z-index:1;">Аккаунтуңузга кирүү үчүн маалыматыңызды киргизиңиз</div>
 
       <form class="form-stack" id="form-login" style="margin-top:20px; position:relative; z-index:1;">
         <div class="field glass-field">
-          <label>Телефон номери</label>
+          <label data-i18n="field_phone">Телефон номери</label>
           <div class="input-wrap"><span class="field-icon"><svg class="icon"><use href="#ic-phone"/></svg></span><input type="tel" id="login-phone" placeholder="+996 700 123 456" autocomplete="tel" required></div>
         </div>
         <div class="field glass-field">
-          <label>Сырсөз</label>
+          <label data-i18n="field_password">Сырсөз</label>
           <div class="input-wrap">
             <span class="field-icon"><svg class="icon"><use href="#ic-shield"/></svg></span>
-            <input type="password" id="login-password" placeholder="Сырсөзүңүздү киргизиңиз" autocomplete="current-password" required style="padding-left:44px;">
+            <input type="password" id="login-password" placeholder="Сырсөзүңүздү киргизиңиз" data-i18n-placeholder="password_placeholder" autocomplete="current-password" required style="padding-left:44px;">
             <button type="button" class="toggle-eye" data-toggle="login-password"><svg class="icon"><use href="#ic-eye"/></svg></button>
           </div>
         </div>
@@ -193,20 +185,27 @@
         </div>
       </form>
 
-      <div class="divider-line" style="position:relative; z-index:1;"></div>
-      <button class="btn btn-secondary" id="link-register" data-i18n="new_account" style="border-radius:999px; position:relative; z-index:1;">Жаңы аккаунт түзүү</button>
+      <div class="divider-text" style="position:relative; z-index:1;"><span data-i18n="divider_or">же</span></div>
+      <button class="btn btn-outline" id="link-register" style="border-radius:999px; position:relative; z-index:1;">
+        <svg class="icon" style="width:16px;height:16px;"><use href="#ic-plus"/></svg> <span data-i18n="new_account">Жаңы аккаунт түзүү</span>
+      </button>
 
       <div class="trust-row">
         <svg class="icon"><use href="#ic-shield"/></svg>
-        <span id="trust-row-text">НАДЁЖНОСТЬ · БЕЗОПАСНОСТЬ · РАЗВИТИЕ</span>
+        <span data-i18n="trust_row">НАДЁЖНОСТЬ · БЕЗОПАСНОСТЬ · РАЗВИТИЕ</span>
       </div>
     </div>
   </section>
 
   <!-- ===================== REGISTER (2-step) ===================== -->
   <section class="screen" id="screen-register">
-    <div class="screen-header"><button class="back-btn" data-goto="screen-login"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2 data-i18n="btn_register">Катталуу</h2></div>
+    <div class="reg-hero">
+      <button class="back-btn reg-hero-back" data-goto="screen-login"><svg class="icon"><use href="#ic-chevron"/></svg></button>
+      <div class="app-icon-badge sm"><svg viewBox="0 0 48 48"><use href="#ic-mountain-logo"/></svg></div>
+      <div class="auth-wordmark"><div class="line1 plain">ESA Bank</div></div>
+    </div>
     <div class="content">
+      <h2 class="auth-title accent" data-i18n="btn_register" style="margin-bottom:14px;">Катталуу</h2>
       <div class="reg-steps">
         <div class="reg-step-dot active" id="reg-dot-1">1</div>
         <div class="reg-step-line"></div>
@@ -214,42 +213,42 @@
       </div>
 
       <div id="reg-step-1-block">
-        <p class="auth-subtitle" style="margin-bottom:18px;">Жеке маалыматыңызды толтуруңуз</p>
+        <p class="auth-subtitle" style="margin-bottom:18px;" data-i18n="reg_subtitle1">Жеке маалыматыңызды толтуруңуз</p>
         <form class="form-stack" id="form-register-step1">
-          <div class="field">
-            <label>Толук атыңыз</label>
-            <div class="input-wrap"><input type="text" id="reg-name" placeholder="Мис: Асанов Азамат" required></div>
+          <div class="field glass-field-plain">
+            <label data-i18n="field_fullname">Толук атыңыз</label>
+            <div class="input-wrap"><input type="text" id="reg-name" placeholder="Мис: Асанов Азамат" data-i18n-placeholder="fullname_placeholder" required></div>
           </div>
-          <div class="field">
-            <label>Телефон номери</label>
+          <div class="field glass-field-plain">
+            <label data-i18n="field_phone">Телефон номери</label>
             <div class="input-wrap"><input type="tel" id="reg-phone" placeholder="+996 700 123 456" required></div>
           </div>
           <div class="field-error" id="register-step1-error"></div>
-          <button type="submit" class="btn btn-primary">Улантуу</button>
+          <button type="submit" class="btn btn-primary" data-i18n="continue_btn">Улантуу</button>
         </form>
       </div>
 
       <div id="reg-step-2-block" style="display:none;">
-        <p class="auth-subtitle" style="margin-bottom:18px;">Коопсуз сырсөз түзүңүз</p>
+        <p class="auth-subtitle" style="margin-bottom:18px;" data-i18n="reg_subtitle2">Коопсуз сырсөз түзүңүз</p>
         <form class="form-stack" id="form-register-step2">
-          <div class="field">
-            <label>Сырсөз</label>
+          <div class="field glass-field-plain">
+            <label data-i18n="field_password">Сырсөз</label>
             <div class="input-wrap">
-              <input type="password" id="reg-password" placeholder="Кеминде 6 белги" required>
+              <input type="password" id="reg-password" placeholder="Кеминде 6 белги" data-i18n-placeholder="min6_placeholder" required>
               <button type="button" class="toggle-eye" data-toggle="reg-password"><svg class="icon"><use href="#ic-eye"/></svg></button>
             </div>
           </div>
-          <div class="field">
-            <label>Сырсөздү кайталаңыз</label>
+          <div class="field glass-field-plain">
+            <label data-i18n="field_password_confirm">Сырсөздү кайталаңыз</label>
             <div class="input-wrap">
-              <input type="password" id="reg-password2" placeholder="Сырсөздү кайра киргизиңиз" required>
+              <input type="password" id="reg-password2" placeholder="Сырсөздү кайра киргизиңиз" data-i18n-placeholder="confirm_password_placeholder" required>
               <button type="button" class="toggle-eye" data-toggle="reg-password2"><svg class="icon"><use href="#ic-eye"/></svg></button>
             </div>
           </div>
           <ul class="pw-checklist" id="pw-checklist">
-            <li data-rule="len">Кеминде 6 белги</li>
-            <li data-rule="letter">Тамга камтыйт</li>
-            <li data-rule="digit">Сан камтыйт</li>
+            <li data-rule="len" data-i18n="pw_rule_len">Кеминде 6 белги</li>
+            <li data-rule="letter" data-i18n="pw_rule_letter">Тамга камтыйт</li>
+            <li data-rule="digit" data-i18n="pw_rule_digit">Сан камтыйт</li>
           </ul>
           <div class="field-error" id="register-step2-error"></div>
           <button type="submit" class="btn btn-primary" id="register-submit" data-i18n="btn_register">Катталуу</button>
@@ -257,45 +256,45 @@
         </form>
       </div>
 
-      <div class="auth-links">Аккаунтуңуз барбы? <a href="#" data-goto="screen-login" data-i18n="btn_login">Кирүү</a></div>
+      <div class="auth-links"><span data-i18n="auth_has_account">Аккаунтуңуз барбы?</span> <a href="#" data-goto="screen-login" data-i18n="btn_login">Кирүү</a></div>
     </div>
   </section>
 
   <!-- ===================== FORGOT PASSWORD ===================== -->
   <section class="screen" id="screen-forgot">
-    <div class="screen-header"><button class="back-btn" data-goto="screen-login"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>Сырсөздү калыбына келтирүү</h2></div>
+    <div class="screen-header"><button class="back-btn" data-goto="screen-login"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2 data-i18n="forgot_title">Сырсөздү калыбына келтирүү</h2></div>
     <div class="content">
       <div id="forgot-step-1">
-        <p class="auth-subtitle" style="margin-bottom:18px;">Катталган телефон номериңизди киргизиңиз</p>
+        <p class="auth-subtitle" style="margin-bottom:18px;" data-i18n="forgot_subtitle1">Катталган телефон номериңизди киргизиңиз</p>
         <form class="form-stack" id="form-forgot-phone">
-          <div class="field">
-            <label>Телефон номери</label>
+          <div class="field glass-field-plain">
+            <label data-i18n="field_phone">Телефон номери</label>
             <div class="input-wrap"><input type="tel" id="forgot-phone" placeholder="+996 700 123 456" required></div>
           </div>
           <div class="field-error" id="forgot-phone-error"></div>
-          <button type="submit" class="btn btn-primary">Кодду алуу</button>
+          <button type="submit" class="btn btn-primary" data-i18n="forgot_get_code">Кодду алуу</button>
         </form>
       </div>
 
       <div id="forgot-step-2" style="display:none;">
-        <p class="auth-subtitle" style="margin-bottom:6px;">Код <b id="forgot-phone-display"></b> номерине жөнөтүлдү</p>
+        <p class="auth-subtitle" style="margin-bottom:6px;"><span data-i18n="forgot_code_sent_prefix">Код</span> <b id="forgot-phone-display"></b> <span data-i18n="forgot_code_sent_suffix">номерине жөнөтүлдү</span></p>
         <div class="demo-hint" id="forgot-demo-code"></div>
         <form class="form-stack" id="form-forgot-reset" style="margin-top:14px;">
-          <div class="field">
-            <label>Текшерүү коду (6 сан)</label>
+          <div class="field glass-field-plain">
+            <label data-i18n="field_code">Текшерүү коду (6 сан)</label>
             <div class="input-wrap"><input type="text" inputmode="numeric" maxlength="6" id="forgot-code" placeholder="000000" required></div>
           </div>
-          <div class="field">
-            <label>Жаңы сырсөз</label>
+          <div class="field glass-field-plain">
+            <label data-i18n="field_newpass">Жаңы сырсөз</label>
             <div class="input-wrap">
-              <input type="password" id="forgot-newpass" placeholder="Кеминде 6 белги" required>
+              <input type="password" id="forgot-newpass" placeholder="Кеминде 6 белги" data-i18n-placeholder="min6_placeholder" required>
               <button type="button" class="toggle-eye" data-toggle="forgot-newpass"><svg class="icon"><use href="#ic-eye"/></svg></button>
             </div>
           </div>
           <div class="field-error" id="forgot-reset-error"></div>
-          <button type="submit" class="btn btn-primary">Сырсөздү жаңыртуу</button>
+          <button type="submit" class="btn btn-primary" data-i18n="forgot_reset_btn">Сырсөздү жаңыртуу</button>
         </form>
-        <div class="resend-timer"><a href="#" id="forgot-resend">Кодду кайра жөнөтүү</a></div>
+        <div class="resend-timer"><a href="#" id="forgot-resend" data-i18n="forgot_resend">Кодду кайра жөнөтүү</a></div>
       </div>
     </div>
   </section>
@@ -316,7 +315,7 @@
 
       <div class="install-banner" id="install-banner">
         <div class="ib-icon"><svg class="icon"><use href="#ic-download"/></svg></div>
-        <div class="ib-text"><b data-i18n="install_app">Тиркеме катары орнотуу</b><span>ESA Bank — үйдүн экранына кошуңуз</span></div>
+        <div class="ib-text"><b data-i18n="install_app">Тиркеме катары орнотуу</b><span data-i18n="install_banner_sub">ESA Bank — үйдүн экранына кошуңуз</span></div>
         <button class="btn btn-primary btn-sm" id="install-btn-banner" data-i18n="install_app">Орнотуу</button>
       </div>
 
@@ -337,7 +336,7 @@
         <div class="hero-content">
           <h1><span data-i18n="greeting_hi">Салам</span>, <span id="dash-firstname">...</span>!</h1>
           <p class="hero-date" id="dash-date"></p>
-          <p class="hero-quote">«Ишениң — ийгиликтин башаты!»</p>
+          <p class="hero-quote" data-i18n="hero_quote">«Ишениң — ийгиликтин башаты!»</p>
         </div>
       </div>
 
@@ -393,7 +392,7 @@
           <span class="rates-badge" id="rates-badge">...</span>
         </div>
         <table class="rates-table">
-          <thead><tr><th>Валюта</th><th data-i18n="buy">Сатып алуу</th><th data-i18n="sell">Сатуу</th></tr></thead>
+          <thead><tr><th data-i18n="th_currency">Валюта</th><th data-i18n="buy">Сатып алуу</th><th data-i18n="sell">Сатуу</th></tr></thead>
           <tbody id="rates-tbody"><tr><td colspan="3" style="text-align:center; color:var(--text-dim); padding:14px;" data-i18n="empty_state_loading">Жүктөлүүдө...</td></tr></tbody>
         </table>
       </div>
@@ -409,9 +408,9 @@
         </div>
         <div class="widget-card">
           <h4 data-i18n="news_title">Акыркы жаңылыктар</h4>
-          <div class="news-item"><svg class="icon"><use href="#ic-bolt"/></svg><span>ESA Bank мобилдик тиркемеси жаңыртылды</span></div>
-          <div class="news-item"><svg class="icon"><use href="#ic-piggy"/></svg><span>Депозиттер боюнча жаңы пайыздык чендер</span></div>
-          <div class="news-item"><svg class="icon"><use href="#ic-qr"/></svg><span>Башка банктардын QR коддорун таанып билет</span></div>
+          <div class="news-item"><svg class="icon"><use href="#ic-bolt"/></svg><span data-i18n="news_item_update">ESA Bank мобилдик тиркемеси жаңыртылды</span></div>
+          <div class="news-item"><svg class="icon"><use href="#ic-piggy"/></svg><span data-i18n="news_item_deposit_rates">Депозиттер боюнча жаңы пайыздык чендер</span></div>
+          <div class="news-item"><svg class="icon"><use href="#ic-qr"/></svg><span data-i18n="news_item_qr_compat">Башка банктардын QR коддорун таанып билет</span></div>
         </div>
         <div class="widget-card">
           <h4 data-i18n="support_title">Колдоо кызматы</h4>
@@ -435,17 +434,17 @@
     <div class="screen-header"><button class="back-btn" data-goto="screen-dashboard"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2 data-i18n="qa_phone">Телефон номери менен которуу</h2></div>
     <div class="content">
       <div class="tabs">
-        <div class="tab active" data-goto="screen-transfer-phone">Телефон номери</div>
-        <div class="tab" data-goto="screen-qr-pay">QR код</div>
+        <div class="tab active" data-goto="screen-transfer-phone" data-i18n="field_phone">Телефон номери</div>
+        <div class="tab" data-goto="screen-qr-pay" data-i18n="method_qr_short">QR код</div>
       </div>
 
       <form id="form-transfer-lookup">
         <div class="field">
-          <label>Алуучунун телефон номери</label>
+          <label data-i18n="recipient_phone_label">Алуучунун телефон номери</label>
           <div class="input-wrap"><input type="tel" id="transfer-phone" placeholder="+996 700 987 654" required></div>
         </div>
         <div class="field-error" id="transfer-lookup-error"></div>
-        <button type="submit" class="btn btn-secondary" id="transfer-lookup-btn">Алуучуну текшерүү</button>
+        <button type="submit" class="btn btn-secondary" id="transfer-lookup-btn" data-i18n="check_recipient_btn">Алуучуну текшерүү</button>
       </form>
 
       <div id="transfer-recipient-block" style="display:none; margin-top:18px;">
@@ -468,39 +467,39 @@
         <div class="field">
           <label data-i18n="category_label">Категория</label>
           <select class="cat-select" id="transfer-category">
-            <option value="other">Башка</option>
-            <option value="food">Тамак-аш</option>
-            <option value="transport">Транспорт</option>
-            <option value="bills">Төлөмдөр</option>
-            <option value="entertainment">Көңүл ачуу</option>
-            <option value="shopping">Соода</option>
-            <option value="health">Ден соолук</option>
+            <option value="other" data-i18n="cat_other">Башка</option>
+            <option value="food" data-i18n="cat_food">Тамак-аш</option>
+            <option value="transport" data-i18n="cat_transport">Транспорт</option>
+            <option value="bills" data-i18n="cat_bills">Төлөмдөр</option>
+            <option value="entertainment" data-i18n="cat_entertainment">Көңүл ачуу</option>
+            <option value="shopping" data-i18n="cat_shopping">Соода</option>
+            <option value="health" data-i18n="cat_health">Ден соолук</option>
           </select>
         </div>
 
         <div class="field">
-          <label>Эскертүү (милдеттүү эмес)</label>
+          <label data-i18n="note_optional_label">Эскертүү (милдеттүү эмес)</label>
           <div class="input-wrap"><input type="text" id="transfer-note" placeholder="Мис: Тамак үчүн" maxlength="140"></div>
         </div>
 
         <div class="field-error" id="transfer-submit-error"></div>
-        <button class="btn btn-primary" id="transfer-submit-btn">Которуу</button>
+        <button class="btn btn-primary" id="transfer-submit-btn" data-i18n="qa_transfer">Которуу</button>
       </div>
     </div>
   </section>
 
   <!-- ===================== QR RECEIVE (my code) ===================== -->
   <section class="screen" id="screen-qr-receive">
-    <div class="screen-header"><button class="back-btn" data-goto="screen-dashboard"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>QR код менен алуу</h2></div>
+    <div class="screen-header"><button class="back-btn" data-goto="screen-dashboard"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2 data-i18n="qr_receive_title">QR код менен алуу</h2></div>
     <div class="content">
       <div class="tabs">
-        <div class="tab active" data-goto="screen-qr-receive">Кодду көрсөтүү</div>
-        <div class="tab" data-goto="screen-qr-pay">Сканерлөө</div>
+        <div class="tab active" data-goto="screen-qr-receive" data-i18n="tab_show_code">Кодду көрсөтүү</div>
+        <div class="tab" data-goto="screen-qr-pay" data-i18n="tab_scan">Сканерлөө</div>
       </div>
       <div class="qr-wrap">
         <div class="qr-box"><img id="my-qr-img" src="" alt="QR код" width="220" height="220"></div>
         <div class="qr-user"><b id="my-qr-name"></b><span id="my-qr-id"></span></div>
-        <p style="color:var(--text-dim); font-size:13px; text-align:center;">Акча которуу үчүн бул кодду экинчи колдонуучуга көрсөтүңүз</p>
+        <p style="color:var(--text-dim); font-size:13px; text-align:center;" data-i18n="qr_receive_desc">Акча которуу үчүн бул кодду экинчи колдонуучуга көрсөтүңүз</p>
       </div>
     </div>
   </section>
@@ -511,8 +510,8 @@
       <div class="qr-cam-topbar">
         <button class="qr-cam-icon-btn" data-goto="screen-dashboard" aria-label="Жабуу"><svg class="icon"><use href="#ic-close"/></svg></button>
         <div class="qr-cam-tabs">
-          <div class="tab active" data-goto="screen-qr-pay">Сканерлөө</div>
-          <div class="tab" data-goto="screen-qr-receive">Кодду көрсөтүү</div>
+          <div class="tab active" data-goto="screen-qr-pay" data-i18n="tab_scan">Сканерлөө</div>
+          <div class="tab" data-goto="screen-qr-receive" data-i18n="tab_show_code">Кодду көрсөтүү</div>
         </div>
         <button class="qr-cam-icon-btn" id="qr-flash-btn" aria-label="Чырак"><svg class="icon"><use href="#ic-flash"/></svg></button>
       </div>
@@ -543,17 +542,17 @@
         <input type="file" id="qr-gallery-input" accept="image/*" style="display:none;">
       </div>
 
-      <button class="qr-manual-link" id="qr-manual-toggle" type="button">Кодду кол менен киргизүү</button>
+      <button class="qr-manual-link" id="qr-manual-toggle" type="button" data-i18n="qr_manual_entry_link">Кодду кол менен киргизүү</button>
       <div class="qr-manual-wrap" id="qr-manual-wrap" style="display:none;">
         <div class="field">
           <div class="input-wrap"><input type="text" id="qr-manual-code" placeholder="QR код тексти"></div>
         </div>
-        <button class="btn btn-secondary" id="qr-manual-check">Текшерүү</button>
+        <button class="btn btn-secondary" id="qr-manual-check" data-i18n="check_btn">Текшерүү</button>
       </div>
     </div>
 
     <div id="qr-pay-block" class="content" style="display:none;">
-      <div class="screen-header" style="padding-left:0;padding-right:0;"><button class="back-btn" id="qrpay-back-btn"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2>QR код менен төлөө</h2></div>
+      <div class="screen-header" style="padding-left:0;padding-right:0;"><button class="back-btn" id="qrpay-back-btn"><svg class="icon"><use href="#ic-chevron"/></svg></button><h2 data-i18n="qr_pay_title">QR код менен төлөө</h2></div>
       <div class="recipient-card">
         <div class="avatar" id="qrpay-avatar">?</div>
         <div class="ri"><b id="qrpay-recipient-name"></b><span id="qrpay-recipient-id"></span></div>
@@ -571,21 +570,21 @@
       <div class="field">
         <label data-i18n="category_label">Категория</label>
         <select class="cat-select" id="qrpay-category">
-          <option value="other">Башка</option>
-          <option value="food">Тамак-аш</option>
-          <option value="transport">Транспорт</option>
-          <option value="bills">Төлөмдөр</option>
-          <option value="entertainment">Көңүл ачуу</option>
-          <option value="shopping">Соода</option>
-          <option value="health">Ден соолук</option>
+          <option value="other" data-i18n="cat_other">Башка</option>
+          <option value="food" data-i18n="cat_food">Тамак-аш</option>
+          <option value="transport" data-i18n="cat_transport">Транспорт</option>
+          <option value="bills" data-i18n="cat_bills">Төлөмдөр</option>
+          <option value="entertainment" data-i18n="cat_entertainment">Көңүл ачуу</option>
+          <option value="shopping" data-i18n="cat_shopping">Соода</option>
+          <option value="health" data-i18n="cat_health">Ден соолук</option>
         </select>
       </div>
       <div class="field">
-        <label>Эскертүү (милдеттүү эмес)</label>
+        <label data-i18n="note_optional_label">Эскертүү (милдеттүү эмес)</label>
         <div class="input-wrap"><input type="text" id="qrpay-note" placeholder="Мис: Тамак үчүн" maxlength="140"></div>
       </div>
       <div class="field-error" id="qrpay-submit-error"></div>
-      <button class="btn btn-primary" id="qrpay-submit-btn">Төлөө</button>
+      <button class="btn btn-primary" id="qrpay-submit-btn" data-i18n="btn_pay">Төлөө</button>
     </div>
   </section>
 
@@ -594,7 +593,7 @@
     <div class="status-circle processing"><svg class="icon icon-lg"><use href="#ic-hourglass"/></svg></div>
     <div class="result-status-text processing">Которуу иштетилүүдө<span class="loader-dots"></span></div>
     <div class="result-amount" id="processing-amount">- 0.00 сом</div>
-    <div class="result-sub">Сураныч, күтө туруңуз</div>
+    <div class="result-sub" data-i18n="processing_wait">Сураныч, күтө туруңуз</div>
   </section>
 
   <!-- ===================== RESULT (success / fail) ===================== -->
@@ -606,15 +605,15 @@
       <div class="result-sub" id="result-sub">Которуу</div>
 
       <div class="receipt-card" id="result-receipt">
-        <h4>Транзакция тууралуу маалымат</h4>
-        <div class="receipt-row"><span class="k">Дата жана убакыт</span><span class="v" id="r-date"></span></div>
-        <div class="receipt-row"><span class="k">Чек номери</span><span class="v" id="r-receipt"></span></div>
-        <div class="receipt-row"><span class="k">Алуучу</span><span class="v" id="r-recipient"></span></div>
-        <div class="receipt-row"><span class="k">Сумма</span><span class="v" id="r-amount"></span></div>
-        <div class="receipt-row" id="r-note-row"><span class="k">Эскертүү</span><span class="v" id="r-note"></span></div>
+        <h4 data-i18n="tx_detail_title">Транзакция тууралуу маалымат</h4>
+        <div class="receipt-row"><span class="k" data-i18n="tx_date">Дата жана убакыт</span><span class="v" id="r-date"></span></div>
+        <div class="receipt-row"><span class="k" data-i18n="tx_receipt_no">Чек номери</span><span class="v" id="r-receipt"></span></div>
+        <div class="receipt-row"><span class="k" data-i18n="tx_recipient">Алуучу</span><span class="v" id="r-recipient"></span></div>
+        <div class="receipt-row"><span class="k" data-i18n="tx_amount">Сумма</span><span class="v" id="r-amount"></span></div>
+        <div class="receipt-row" id="r-note-row"><span class="k" data-i18n="tx_note">Эскертүү</span><span class="v" id="r-note"></span></div>
       </div>
 
-      <button class="btn btn-primary" id="result-done-btn">Башкы бетке</button>
+      <button class="btn btn-primary" id="result-done-btn" data-i18n="go_home_btn">Башкы бетке</button>
     </div>
   </section>
 
@@ -667,9 +666,9 @@
         <svg class="icon icon-lg"><use href="#ic-piggy"/></svg>
         <h3 data-i18n="deposits_intro">Жогорку пайыздык чен менен каражатыңызды сактаңыз</h3>
       </div>
-      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-piggy"/></svg><div><b data-i18n="deposit_classic">Классикалык</b><span>12.5% жылдык</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
-      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-piggy"/></svg><div><b data-i18n="deposit_online">Онлайн</b><span>14.0% жылдык</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
-      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-piggy"/></svg><div><b data-i18n="deposit_child">Эндик</b><span>10.0% жылдык</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
+      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-piggy"/></svg><div><b data-i18n="deposit_classic">Классикалык</b><span data-i18n="deposit_rate_classic">12.5% жылдык</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
+      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-piggy"/></svg><div><b data-i18n="deposit_online">Онлайн</b><span data-i18n="deposit_rate_online">14.0% жылдык</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
+      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-piggy"/></svg><div><b data-i18n="deposit_child">Эндик</b><span data-i18n="deposit_rate_child">10.0% жылдык</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
     </div>
   </section>
 
@@ -681,9 +680,9 @@
         <svg class="icon icon-lg"><use href="#ic-doc"/></svg>
         <h3 data-i18n="credits_intro">Максатыңызга жетүү үчүн кредит алыңыз</h3>
       </div>
-      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-doc"/></svg><div><b data-i18n="credit_consumer">Керектөө кредити</b><span>Жаңы муктаждыктар үчүн</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
-      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-doc"/></svg><div><b data-i18n="credit_auto">Авто кредит</b><span>Унаа сатып алуу үчүн</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
-      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-doc"/></svg><div><b data-i18n="credit_mortgage">Ипотека</b><span>Үй алуу үчүн</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
+      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-doc"/></svg><div><b data-i18n="credit_consumer">Керектөө кредити</b><span data-i18n="credit_desc_consumer">Жаңы муктаждыктар үчүн</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
+      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-doc"/></svg><div><b data-i18n="credit_auto">Авто кредит</b><span data-i18n="credit_desc_auto">Унаа сатып алуу үчүн</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
+      <div class="option-card"><div class="oi"><svg class="icon"><use href="#ic-doc"/></svg><div><b data-i18n="credit_mortgage">Ипотека</b><span data-i18n="credit_desc_mortgage">Үй алуу үчүн</span></div></div><span class="badge-soon" data-i18n="coming_soon">Жакында</span></div>
     </div>
   </section>
 

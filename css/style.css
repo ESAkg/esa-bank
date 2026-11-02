@@ -817,3 +817,43 @@ select.cat-select {
 #notif-banner .nb-title { font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; }
 #notif-banner .nb-title .nb-time { font-weight: 500; color: var(--text-dim); font-size: 10.5px; }
 #notif-banner .nb-body { font-size: 12.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ======================================================
+   Scenic mountain/lake login hero + shared auth polish
+   ====================================================== */
+.scenic-theme { background: var(--navy-900); }
+.scenic-bg { position: absolute; top: 0; left: 0; right: 0; height: 340px; z-index: 0; overflow: hidden; }
+.scenic-bg svg { width: 100%; height: 100%; display: block; }
+.scenic-fade { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, var(--navy-900) 94%); }
+.app-icon-badge {
+  width: 92px; height: 92px; margin: 0 auto 14px; border-radius: 24px; padding: 14px;
+  background: linear-gradient(145deg, #2a5a9e, #0a1f3d);
+  border: 1px solid rgba(255,255,255,0.3);
+  box-shadow: 0 14px 34px -10px rgba(10,31,61,0.7), inset 0 1px 0 rgba(255,255,255,0.35), 0 0 30px -4px rgba(74,144,226,0.55);
+}
+.app-icon-badge svg { width: 100%; height: 100%; }
+.app-icon-badge.sm { width: 52px; height: 52px; border-radius: 15px; padding: 8px; margin: 0 0 8px; }
+.auth-wordmark .line1.plain { background: none; -webkit-text-fill-color: unset; color: #fff; font-size: 26px; font-weight: 800; }
+.tagline-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 6px; }
+.tagline-row span:first-child, .tagline-row span:last-child { height: 1px; width: 26px; background: rgba(255,255,255,0.25); }
+.tagline-row .line2 { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.auth-title.accent { position: relative; padding-left: 12px; }
+.auth-title.accent::before { content: ''; position: absolute; left: 0; top: 2px; bottom: 2px; width: 3px; border-radius: 2px; background: linear-gradient(180deg, var(--blue-400), var(--blue-600)); }
+.divider-text { display: flex; align-items: center; gap: 12px; margin: 22px 0; color: var(--text-dim); font-size: 12px; }
+.divider-text::before, .divider-text::after { content: ''; flex: 1; height: 1px; background: var(--border-subtle); }
+.btn-outline {
+  background: transparent; border: 1.5px solid rgba(255,255,255,0.3); color: #fff;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+:root[data-theme="light"] .btn-outline { border-color: rgba(15,36,64,0.25); color: var(--text-main); }
+.reg-hero {
+  position: relative; display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 44px 20px 22px; background: radial-gradient(ellipse at 50% 0%, #163a6e 0%, var(--navy-900) 80%);
+}
+.reg-hero-back { position: absolute; left: 14px; top: 14px; }
+.glass-field-plain input, .glass-field-plain select {
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01));
+  border: 1px solid var(--border-subtle);
+}
+:root[data-theme="light"] .glass-field-plain input { background: rgba(10,31,61,0.03); }
