@@ -62,9 +62,15 @@ input { font-family: inherit; }
 .esa-logo .wordmark span { font-size: 10.5px; color: var(--text-dim); display:block; }
 
 /* ---------- Экраны ---------- */
-.screen { display: none; flex-direction: column; flex: 1; min-height: 100vh; animation: fadeIn .25s ease; }
+.screen { display: none; flex-direction: column; flex: 1; min-height: 100vh; animation: screenInFwd .36s cubic-bezier(.22,.85,.32,1.1); }
 .screen.active { display: flex; }
+.screen.active.screen-back { animation: screenInBack .36s cubic-bezier(.22,.85,.32,1.1); }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px);} to { opacity:1; transform:none; } }
+@keyframes screenInFwd { from { opacity: 0; transform: translateX(26px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes screenInBack { from { opacity: 0; transform: translateX(-26px) scale(.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .screen, .screen.active.screen-back { animation: none !important; }
+}
 
 /* ---------- Auth screens ---------- */
 .auth-screen {
@@ -479,6 +485,38 @@ body.app-shell #app { padding-bottom: 0; }
 .bal-card .amount { font-size: 24px; font-weight: 800; margin: 8px 0 3px; color: #fff; letter-spacing: -0.3px; }
 .bal-card .sub { font-size: 11.5px; color: rgba(255,255,255,0.7); }
 .bal-card .cta { margin-top: 10px; font-size: 11.5px; font-weight: 700; color: #fff; background: rgba(255,255,255,0.18); border: none; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.bal-card.frozen { filter: grayscale(0.85) brightness(0.72); }
+.bal-card.frozen::after {
+  content: ''; position: absolute; inset: 0; backdrop-filter: blur(1.5px);
+  background: repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0 10px, transparent 10px 20px);
+}
+.card-theme-btn {
+  margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: #fff;
+  background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; padding: 7px 13px; cursor: pointer;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); position: relative; z-index: 1;
+}
+.card-actions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+.card-action-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 14px 6px; border-radius: var(--radius-md);
+  background: var(--card-bg); border: 1px solid var(--border-subtle); color: var(--text-main); font-size: 11.5px; font-weight: 600; cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
+}
+.card-action-btn:active { transform: scale(0.96); background: var(--card-bg-2); }
+.card-action-btn .icon { color: var(--blue-400); }
+.card-theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0 6px; }
+.card-theme-swatch {
+  height: 64px; border-radius: 14px; border: 2px solid transparent; cursor: pointer; position: relative;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18); transition: transform .15s ease, border-color .15s ease;
+}
+.card-theme-swatch:active { transform: scale(0.95); }
+.card-theme-swatch.active { border-color: var(--accent-gold); }
+.card-theme-swatch .ts-check {
+  position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.35);
+  display: none; align-items: center; justify-content: center; color: #fff;
+}
+.card-theme-swatch.active .ts-check { display: flex; }
+.card-theme-swatch .ts-check svg { width: 11px; height: 11px; }
+.card-theme-label { font-size: 10.5px; text-align: center; margin-top: 5px; color: var(--text-dim); }
 
 /* ======================================================
    Quick actions: up to 6
@@ -587,7 +625,9 @@ select.cat-select {
 .help-contact-row {
   display: flex; align-items: center; gap: 12px; background: var(--card-bg); border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 10px;
+  text-decoration: none; color: inherit; transition: transform .15s ease, background .15s ease;
 }
+.help-contact-row:active { transform: scale(0.98); background: var(--card-bg-2); }
 .help-contact-row .hi { width: 38px; height: 38px; border-radius: 50%; background: var(--card-bg-2); display:flex; align-items:center; justify-content:center; color: var(--blue-400); flex-shrink:0; }
 .help-contact-row b { display:block; font-size: 13px; }
 .help-contact-row span { font-size: 12px; color: var(--text-dim); }
@@ -857,3 +897,106 @@ select.cat-select {
   border: 1px solid var(--border-subtle);
 }
 :root[data-theme="light"] .glass-field-plain input { background: rgba(10,31,61,0.03); }
+
+/* ======================================================
+   PIN lock screen
+   ====================================================== */
+.pinlock-body { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; margin-top: 10px; }
+.pinlock-hint { font-size: 13.5px; color: var(--text-dim); margin: 4px 0 20px; text-align: center; }
+.pin-dots { display: flex; gap: 16px; margin-bottom: 8px; }
+.pin-dot {
+  width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.5);
+  background: transparent; transition: background .15s ease, transform .15s ease;
+}
+.pin-dot.filled { background: var(--accent-gold); border-color: var(--accent-gold); transform: scale(1.1); }
+.pin-dots.shake { animation: pinShake .4s ease; }
+@keyframes pinShake { 0%,100%{transform:translateX(0);} 20%{transform:translateX(-10px);} 40%{transform:translateX(10px);} 60%{transform:translateX(-8px);} 80%{transform:translateX(8px);} }
+.pin-keypad { display: grid; grid-template-columns: repeat(3, 68px); gap: 16px; margin-top: 18px; justify-content: center; }
+.pin-key {
+  width: 68px; height: 68px; border-radius: 50%; font-size: 24px; font-weight: 600; color: #fff;
+  background: linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03));
+  border: 1px solid rgba(255,255,255,0.18); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  cursor: pointer; transition: transform .1s ease, background .15s ease;
+}
+.pin-key:active { transform: scale(0.92); background: rgba(255,255,255,0.22); }
+.pin-key-del, .pin-key-biometric { background: transparent; border: none; display: flex; align-items: center; justify-content: center; }
+.pin-key-del .icon, .pin-key-biometric .icon { width: 22px; height: 22px; color: rgba(255,255,255,0.75); }
+.pinlock-alt-link { display: block; margin-top: 26px; text-align: center; font-size: 13px; color: var(--blue-400); font-weight: 600; }
+
+/* ======================================================
+   PIN setup modal (Settings)
+   ====================================================== */
+.pin-setup-step { display: none; }
+.pin-setup-step.active { display: flex; flex-direction: column; align-items: center; }
+
+/* ======================================================
+   VISUAL POLISH: ripple, stagger-in, glow, micro-interactions
+   ====================================================== */
+
+/* --- Ripple effect (added to buttons via JS, class .ripple-host) --- */
+.ripple-host { position: relative; overflow: hidden; }
+.ripple-wave {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.12) 60%, transparent 70%);
+  transform: scale(0); opacity: 1;
+  animation: rippleExpand .55s cubic-bezier(.2,.7,.2,1) forwards;
+}
+@keyframes rippleExpand { to { transform: scale(2.6); opacity: 0; } }
+
+/* --- Primary CTA breathing glow --- */
+.btn-primary { position: relative; }
+.btn-primary::before {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; z-index: -1;
+  background: linear-gradient(135deg, var(--blue-500), var(--blue-400));
+  filter: blur(14px); opacity: .45; transition: opacity .2s ease;
+}
+.btn-primary:active::before { opacity: .75; }
+
+/* --- Staggered entrance for grids/lists on screen activation --- */
+.quick-actions .quick-action,
+.card-actions-grid .card-action-btn,
+.menu-list .menu-row,
+.tx-list .tx-row {
+  animation: staggerUp .42s cubic-bezier(.22,.85,.32,1.1) backwards;
+}
+.quick-actions .quick-action:nth-child(1), .card-actions-grid .card-action-btn:nth-child(1) { animation-delay: .02s; }
+.quick-actions .quick-action:nth-child(2), .card-actions-grid .card-action-btn:nth-child(2) { animation-delay: .07s; }
+.quick-actions .quick-action:nth-child(3), .card-actions-grid .card-action-btn:nth-child(3) { animation-delay: .12s; }
+.quick-actions .quick-action:nth-child(4) { animation-delay: .17s; }
+.quick-actions .quick-action:nth-child(5) { animation-delay: .22s; }
+.quick-actions .quick-action:nth-child(6) { animation-delay: .27s; }
+@keyframes staggerUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .quick-actions .quick-action, .card-actions-grid .card-action-btn, .menu-list .menu-row, .tx-list .tx-row { animation: none !important; }
+}
+
+/* --- Card tilt-on-press for balance cards --- */
+.bal-card { transition: transform .18s cubic-bezier(.2,.8,.3,1.2), box-shadow .18s ease; }
+.bal-card:active { transform: scale(0.975) translateY(1px); box-shadow: 0 6px 18px -6px rgba(0,0,0,0.5); }
+
+/* --- Bottom nav active pill indicator --- */
+.nav-item { position: relative; transition: color .2s ease, transform .15s ease; }
+.nav-item:active { transform: scale(0.92); }
+.nav-item.active::before {
+  content: ''; position: absolute; top: -2px; left: 50%; width: 26px; height: 3px;
+  background: linear-gradient(90deg, var(--blue-400), var(--accent-gold));
+  border-radius: 3px; transform: translateX(-50%);
+  animation: navPillIn .25s cubic-bezier(.2,.8,.3,1.2);
+}
+@keyframes navPillIn { from { width: 0; opacity: 0; } to { width: 26px; opacity: 1; } }
+
+/* --- Modal sheet entrance refinement --- */
+.modal-sheet { animation: sheetUp .32s cubic-bezier(.22,.9,.32,1.15); }
+
+/* --- Toast polish --- */
+.toast { animation: toastIn .3s cubic-bezier(.22,.9,.32,1.2); }
+
+/* --- Icon buttons subtle press depth --- */
+.icon-btn, .theme-toggle, .bell-btn, .lang-switch {
+  transition: transform .15s cubic-bezier(.2,.8,.3,1.2), background .15s ease, box-shadow .15s ease;
+}
+.icon-btn:active, .theme-toggle:active, .bell-btn:active, .lang-switch:active { transform: scale(0.88); }
+
+/* --- Settings / menu rows subtle hover-press affordance --- */
+.settings-row, .menu-row { transition: background .15s ease, transform .1s ease; }
+.settings-row:active, .menu-row:active { transform: scale(0.99); background: rgba(255,255,255,0.03); }

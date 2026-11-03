@@ -13,12 +13,18 @@ let state = {
 };
 
 // ---------- Навигация ----------
-function goto(screenId) {
+function goto(screenId, opts) {
+  const isBack = !!(opts && opts.back);
   const prevActive = document.querySelector('.screen.active');
   if (prevActive && prevActive.id === 'screen-qr-pay' && screenId !== 'screen-qr-pay') stopQrScanner();
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active', 'screen-back'));
   const el = document.getElementById(screenId);
-  if (el) el.classList.add('active');
+  if (el) {
+    if (isBack) el.classList.add('screen-back');
+    // force reflow so the animation class re-triggers even if same screen
+    void el.offsetWidth;
+    el.classList.add('active');
+  }
   document.querySelectorAll('.nav-item, .side-item').forEach(n => {
     n.classList.toggle('active', n.dataset.goto === screenId);
   });
@@ -29,15 +35,40 @@ function goto(screenId) {
   if (screenId === 'screen-profile') loadProfile();
   if (screenId === 'screen-stats') loadStatsScreen();
   if (screenId === 'screen-cards') loadCardsScreen();
-  if (screenId === 'screen-settings') { /* статичный экран, данные не нужны */ }
+  if (screenId === 'screen-settings') {
+    const pinBtn = document.getElementById('open-pin-setup-btn');
+    if (pinBtn) pinBtn.textContent = hasPin() ? t('settings_pin_change') : t('settings_pin_set');
+  }
   if (screenId === 'screen-transfer-phone') resetTransferPhoneForm();
   if (screenId === 'screen-qr-pay') resetQrPayForm();
 }
 
 document.addEventListener('click', (e) => {
   const t = e.target.closest('[data-goto]');
-  if (t) { e.preventDefault(); goto(t.dataset.goto); }
+  if (t) { e.preventDefault(); goto(t.dataset.goto, { back: t.classList.contains('back-btn') }); }
 });
+
+// ---------- Ripple + micro-interaction effect ----------
+(function initRipple() {
+  const RIPPLE_SELECTOR = '.btn, .quick-action, .card-action-btn, .nav-item, .side-item, .icon-btn, ' +
+    '.menu-row, .settings-row, .pin-key, .card-theme-swatch, .card-action-btn, .help-contact-row, .bal-card .cta';
+  document.addEventListener('pointerdown', (e) => {
+    const host = e.target.closest(RIPPLE_SELECTOR);
+    if (!host) return;
+    const cs = getComputedStyle(host);
+    if (cs.position === 'static') host.style.position = 'relative';
+    host.classList.add('ripple-host');
+    const rect = host.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height) * 1.2;
+    const wave = document.createElement('span');
+    wave.className = 'ripple-wave';
+    wave.style.width = wave.style.height = size + 'px';
+    wave.style.left = (e.clientX - rect.left - size / 2) + 'px';
+    wave.style.top = (e.clientY - rect.top - size / 2) + 'px';
+    host.appendChild(wave);
+    setTimeout(() => wave.remove(), 600);
+  }, { passive: true });
+})();
 
 // ---------- Toast ----------
 function toast(msg, type) {
@@ -302,6 +333,11 @@ function onAuthSuccess(data) {
   localStorage.setItem('esa_token', data.token);
   document.body.classList.add('app-shell');
   goto('screen-dashboard');
+  // Банктын ээсине ыңгайлуулук үчүн — демо-орнотмодо PIN "0000" алдын ала коюлат,
+  // эгер ал буга чейин өз PIN-кодун коюп койбосо.
+  if (data.user && data.user.account && data.user.account.isOwner && !hasPin()) {
+    setPin('0000');
+  }
 }
 
 function doLogout() {
@@ -310,6 +346,7 @@ function doLogout() {
   localStorage.removeItem('esa_token');
   document.body.classList.remove('app-shell');
   document.getElementById('form-login').reset();
+  clearSecurityData();
   goto('screen-login');
 }
 document.getElementById('logout-btn').addEventListener('click', doLogout);
@@ -419,6 +456,7 @@ async function loadDashboard() {
     const { user } = await api('GET', '/me');
     state.user = user;
     applyUserChrome(user);
+    applyCardTheme(getCardTheme());
 
     document.getElementById('dash-firstname').textContent = firstName(user.fullName);
     document.getElementById('dash-balance').textContent = user.account.isOwner ? t('unlimited') : formatMoney(user.account.balance);
@@ -632,11 +670,92 @@ async function loadCardsScreen() {
     const bal = user.account.isOwner ? t('unlimited') : formatMoney(user.account.balance);
     document.getElementById('cards-acc-balance').textContent = bal;
     document.getElementById('cards-card-balance').textContent = bal;
+    document.getElementById('cards-acc-suffix').style.display = user.account.isOwner ? 'none' : '';
+    document.getElementById('cards-card-suffix').style.display = user.account.isOwner ? 'none' : '';
     document.getElementById('cards-acc-no').textContent = user.account.accountNumber;
+    applyCardTheme(getCardTheme());
+    applyCardFrozenUI(isCardFrozen());
   } catch (err) {
     if (err.status === 401) forceLogout();
   }
 }
+
+// ======================================================
+// CARD DESIGN THEMES
+// ======================================================
+const CARD_THEMES = [
+  { id: 'emerald', nameKey: 'theme_emerald', gradient: 'linear-gradient(135deg, #0f7a4a, #1db954 120%)' },
+  { id: 'navy', nameKey: 'theme_navy', gradient: 'linear-gradient(135deg, var(--navy-600), var(--blue-500) 120%)' },
+  { id: 'gold', nameKey: 'theme_gold', gradient: 'linear-gradient(135deg, #8a6a12, #f5c518 120%)' },
+  { id: 'violet', nameKey: 'theme_violet', gradient: 'linear-gradient(135deg, #5b2fa6, #8b5cf6 120%)' },
+  { id: 'graphite', nameKey: 'theme_graphite', gradient: 'linear-gradient(135deg, #2b2f36, #5a6170 120%)' },
+  { id: 'sunset', nameKey: 'theme_sunset', gradient: 'linear-gradient(135deg, #a6322f, #f0864a 120%)' },
+];
+
+function cardThemeStorageKey() { return `esa_card_theme_${(state.user && state.user.clientId) || 'default'}`; }
+function cardFrozenStorageKey() { return `esa_card_frozen_${(state.user && state.user.clientId) || 'default'}`; }
+function getCardTheme() { return localStorage.getItem(cardThemeStorageKey()) || 'emerald'; }
+function isCardFrozen() { return localStorage.getItem(cardFrozenStorageKey()) === '1'; }
+
+function applyCardTheme(themeId) {
+  const theme = CARD_THEMES.find(t2 => t2.id === themeId) || CARD_THEMES[0];
+  document.querySelectorAll('#dash-card-visual, #cards-card-visual').forEach(el => {
+    if (el) el.style.background = theme.gradient;
+  });
+}
+
+function applyCardFrozenUI(frozen) {
+  const visual = document.getElementById('cards-card-visual');
+  if (visual) visual.classList.toggle('frozen', frozen);
+  const btn = document.getElementById('card-freeze-btn');
+  if (btn) {
+    btn.querySelector('span').textContent = frozen ? t('unfreeze_card') : t('freeze_card');
+  }
+}
+
+function renderCardThemeGrid() {
+  const grid = document.getElementById('card-theme-grid');
+  const current = getCardTheme();
+  grid.innerHTML = CARD_THEMES.map(theme => `
+    <div>
+      <div class="card-theme-swatch${theme.id === current ? ' active' : ''}" data-theme-id="${theme.id}" style="background:${theme.gradient}">
+        <div class="ts-check"><svg class="icon"><use href="#ic-check"/></svg></div>
+      </div>
+      <div class="card-theme-label">${t(theme.nameKey)}</div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('open-card-theme-btn').addEventListener('click', () => {
+  renderCardThemeGrid();
+  openModal('card-theme-modal');
+});
+
+document.getElementById('card-theme-grid').addEventListener('click', (e) => {
+  const swatch = e.target.closest('[data-theme-id]');
+  if (!swatch) return;
+  const themeId = swatch.dataset.themeId;
+  localStorage.setItem(cardThemeStorageKey(), themeId);
+  applyCardTheme(themeId);
+  renderCardThemeGrid();
+  toast(t('card_theme_applied'), 'success');
+  setTimeout(() => closeModal('card-theme-modal'), 450);
+});
+
+document.getElementById('card-freeze-btn').addEventListener('click', () => {
+  const frozen = !isCardFrozen();
+  localStorage.setItem(cardFrozenStorageKey(), frozen ? '1' : '0');
+  applyCardFrozenUI(frozen);
+  toast(frozen ? t('card_frozen_toast') : t('card_unfrozen_toast'), frozen ? 'error' : 'success');
+});
+
+document.getElementById('card-requisites-btn').addEventListener('click', async () => {
+  const acc = document.getElementById('cards-acc-no').textContent;
+  try {
+    await navigator.clipboard.writeText(acc);
+  } catch (_) { /* буфер жеткиликсиз болушу мүмкүн — азыр гана көрсөтөбүз */ }
+  toast(`${acc} — ${t('copied_clipboard')}`, 'success');
+});
 
 // ======================================================
 // HISTORY
@@ -1044,12 +1163,37 @@ document.getElementById('result-done-btn').addEventListener('click', () => {
 // ======================================================
 // PWA: install prompt + service worker
 // ======================================================
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  state.deferredInstallPrompt = e;
+function isAppInstalled() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true
+    || localStorage.getItem('esa_pwa_installed') === '1';
+}
+
+function hideInstallPrompts() {
   document.querySelectorAll('#install-btn-top, #install-banner, #install-btn-widget').forEach(el => {
-    if (el) { el.style.display = el.id === 'install-banner' ? 'flex' : 'inline-flex'; el.classList.add('show'); }
+    if (el) { el.style.display = 'none'; el.classList.remove('show'); }
   });
+}
+
+if (isAppInstalled()) {
+  localStorage.setItem('esa_pwa_installed', '1');
+  hideInstallPrompts();
+} else {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    if (isAppInstalled()) return;
+    state.deferredInstallPrompt = e;
+    document.querySelectorAll('#install-btn-top, #install-banner, #install-btn-widget').forEach(el => {
+      if (el) { el.style.display = el.id === 'install-banner' ? 'flex' : 'inline-flex'; el.classList.add('show'); }
+    });
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  localStorage.setItem('esa_pwa_installed', '1');
+  state.deferredInstallPrompt = null;
+  hideInstallPrompts();
+  toast(t('app_installed_toast'), 'success');
 });
 
 async function triggerInstall() {
@@ -1058,11 +1202,10 @@ async function triggerInstall() {
     return;
   }
   state.deferredInstallPrompt.prompt();
-  await state.deferredInstallPrompt.userChoice;
+  const choice = await state.deferredInstallPrompt.userChoice;
   state.deferredInstallPrompt = null;
-  document.querySelectorAll('#install-btn-top, #install-banner, #install-btn-widget').forEach(el => {
-    if (el) { el.style.display = 'none'; el.classList.remove('show'); }
-  });
+  if (choice && choice.outcome === 'accepted') localStorage.setItem('esa_pwa_installed', '1');
+  hideInstallPrompts();
 }
 ['install-btn-top', 'install-btn-banner', 'install-btn-widget'].forEach(id => {
   const el = document.getElementById(id);
@@ -1076,10 +1219,235 @@ if ('serviceWorker' in navigator) {
 }
 
 // ======================================================
+// SECURITY: PIN code + biometric (WebAuthn) app lock
+// ======================================================
+async function sha256Hex(text) {
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function getPinHash() { return localStorage.getItem('esa_pin_hash'); }
+function hasPin() { return !!getPinHash(); }
+async function setPin(pin) { localStorage.setItem('esa_pin_hash', await sha256Hex(pin)); }
+async function checkPin(pin) { return hasPin() && (await sha256Hex(pin)) === getPinHash(); }
+function clearSecurityData() {
+  localStorage.removeItem('esa_pin_hash');
+  localStorage.removeItem('esa_webauthn_cred_id');
+  localStorage.removeItem('esa_webauthn_registered');
+}
+function hasBiometric() { return localStorage.getItem('esa_webauthn_registered') === '1'; }
+function webauthnSupported() {
+  return !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create);
+}
+function b64urlToBuf(b64url) {
+  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(b64url.length / 4) * 4, '=');
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf;
+}
+function bufToB64url(buf) {
+  let bin = '';
+  new Uint8Array(buf).forEach(b => { bin += String.fromCharCode(b); });
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function registerBiometric() {
+  if (!webauthnSupported()) { toast(t('biometric_not_supported'), 'error'); return false; }
+  try {
+    const userId = crypto.getRandomValues(new Uint8Array(16));
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'ESA Bank' },
+        user: { id: userId, name: (state.user && state.user.phoneFormatted) || 'esa-user', displayName: (state.user && state.user.fullName) || 'ESA Bank user' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 60000,
+      }
+    });
+    if (!cred) return false;
+    localStorage.setItem('esa_webauthn_cred_id', bufToB64url(cred.rawId));
+    localStorage.setItem('esa_webauthn_registered', '1');
+    toast(t('biometric_registered'), 'success');
+    return true;
+  } catch (_) {
+    toast(t('biometric_failed'), 'error');
+    return false;
+  }
+}
+
+async function verifyBiometric() {
+  if (!webauthnSupported() || !hasBiometric()) return false;
+  try {
+    const credId = localStorage.getItem('esa_webauthn_cred_id');
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: credId ? [{ id: b64urlToBuf(credId), type: 'public-key' }] : [],
+        userVerification: 'required',
+        timeout: 60000,
+      }
+    });
+    return !!assertion;
+  } catch (_) {
+    return false;
+  }
+}
+
+document.getElementById('toggle-biometric').addEventListener('change', async (e) => {
+  if (e.target.checked) {
+    const ok = await registerBiometric();
+    if (!ok) e.target.checked = false;
+  } else {
+    localStorage.removeItem('esa_webauthn_cred_id');
+    localStorage.removeItem('esa_webauthn_registered');
+    toast(t('biometric_removed'), 'success');
+  }
+});
+(function initBiometricToggle() {
+  const toggle = document.getElementById('toggle-biometric');
+  if (toggle) toggle.checked = hasBiometric();
+})();
+
+// ---------- PIN setup modal (Settings) ----------
+let pinSetupBuffer = '';
+let pinSetupFirstEntry = null;
+
+function renderPinDots(containerId, count) {
+  const dots = document.querySelectorAll(`#${containerId} .pin-dot`);
+  dots.forEach((d, i) => d.classList.toggle('filled', i < count));
+}
+
+function resetPinSetup() {
+  pinSetupBuffer = '';
+  pinSetupFirstEntry = null;
+  renderPinDots('pin-setup-dots', 0);
+  document.getElementById('pin-setup-hint').textContent = t('pin_setup_enter_new');
+  setError('pin-setup-error', '');
+}
+
+document.getElementById('open-pin-setup-btn').addEventListener('click', () => {
+  resetPinSetup();
+  openModal('pin-setup-modal');
+});
+
+document.getElementById('pin-setup-keypad').addEventListener('click', async (e) => {
+  const key = e.target.closest('[data-key]');
+  const del = e.target.closest('#pin-setup-del-btn');
+  if (del) { pinSetupBuffer = pinSetupBuffer.slice(0, -1); renderPinDots('pin-setup-dots', pinSetupBuffer.length); return; }
+  if (!key) return;
+  if (pinSetupBuffer.length >= 4) return;
+  pinSetupBuffer += key.dataset.key;
+  renderPinDots('pin-setup-dots', pinSetupBuffer.length);
+  if (pinSetupBuffer.length === 4) {
+    if (pinSetupFirstEntry === null) {
+      pinSetupFirstEntry = pinSetupBuffer;
+      pinSetupBuffer = '';
+      setTimeout(() => {
+        renderPinDots('pin-setup-dots', 0);
+        document.getElementById('pin-setup-hint').textContent = t('pin_setup_confirm');
+      }, 200);
+    } else {
+      if (pinSetupBuffer === pinSetupFirstEntry) {
+        await setPin(pinSetupBuffer);
+        toast(t('pin_setup_success'), 'success');
+        setTimeout(() => closeModal('pin-setup-modal'), 300);
+      } else {
+        setError('pin-setup-error', t('pin_setup_mismatch'));
+        const dotsEl = document.getElementById('pin-setup-dots');
+        dotsEl.classList.add('shake');
+        setTimeout(() => dotsEl.classList.remove('shake'), 400);
+        setTimeout(resetPinSetup, 500);
+      }
+    }
+  }
+});
+
+// ---------- PIN lock screen (on app resume) ----------
+let pinLockBuffer = '';
+
+function renderPinLockName() {
+  const el = document.getElementById('pinlock-name');
+  if (el) el.textContent = t('app_name');
+}
+
+async function resumeSessionAfterUnlock() {
+  try {
+    const { user } = await api('GET', '/me');
+    state.user = user;
+    document.body.classList.add('app-shell');
+    goto('screen-dashboard');
+  } catch (_) {
+    localStorage.removeItem('esa_token');
+    state.token = null;
+    clearSecurityData();
+    document.body.classList.remove('app-shell');
+    goto('screen-login');
+  }
+}
+
+function showPinLockScreen() {
+  pinLockBuffer = '';
+  renderPinDots('pin-dots', 0);
+  renderPinLockName();
+  setError('pinlock-error', '');
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-pinlock').classList.add('active');
+  document.getElementById('pin-biometric-btn').style.display = (hasBiometric() && webauthnSupported()) ? 'flex' : 'none';
+}
+
+async function handlePinLockDigit(digit) {
+  if (pinLockBuffer.length >= 4) return;
+  pinLockBuffer += digit;
+  renderPinDots('pin-dots', pinLockBuffer.length);
+  if (pinLockBuffer.length === 4) {
+    const ok = await checkPin(pinLockBuffer);
+    if (ok) {
+      resumeSessionAfterUnlock();
+    } else {
+      setError('pinlock-error', t('pin_wrong'));
+      const dotsEl = document.getElementById('pin-dots');
+      dotsEl.classList.add('shake');
+      setTimeout(() => dotsEl.classList.remove('shake'), 400);
+      setTimeout(() => { pinLockBuffer = ''; renderPinDots('pin-dots', 0); }, 450);
+    }
+  }
+}
+
+document.getElementById('pin-keypad').addEventListener('click', (e) => {
+  const key = e.target.closest('[data-key]');
+  const del = e.target.closest('#pin-del-btn');
+  if (del) { pinLockBuffer = pinLockBuffer.slice(0, -1); renderPinDots('pin-dots', pinLockBuffer.length); return; }
+  if (key) handlePinLockDigit(key.dataset.key);
+});
+
+document.getElementById('pin-biometric-btn').addEventListener('click', async () => {
+  const ok = await verifyBiometric();
+  if (ok) resumeSessionAfterUnlock();
+  else toast(t('biometric_failed'), 'error');
+});
+
+document.getElementById('pinlock-use-password').addEventListener('click', (e) => {
+  e.preventDefault();
+  state.token = null;
+  localStorage.removeItem('esa_token');
+  document.body.classList.remove('app-shell');
+  goto('screen-login');
+});
+
+// ======================================================
 // INIT
 // ======================================================
 (async function init() {
   if (state.token) {
+    if (hasPin()) {
+      showPinLockScreen();
+      // Эгер биометрика да жеткиликтүү болсо, колдонуучуга өзү тандасын — автоматтык түрдө сурабайбыз.
+      return;
+    }
     try {
       const { user } = await api('GET', '/me');
       state.user = user;
