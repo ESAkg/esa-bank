@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESA Bank — Офис</title>
+<meta name="description" content="ESA Bank — внутренняя система офиса: регистрация клиентов, карты, банкоматы и терминалы">
+<meta name="theme-color" content="#0a1f3d">
+<link rel="icon" href="../icons/icon-64.png" type="image/png">
+<link rel="stylesheet" href="../css/brand.css">
+<link rel="stylesheet" href="office.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="ic-mountain-logo" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="24" fill="url(#g-logo)"/>
+      <circle cx="24" cy="24" r="22.6" fill="none" stroke="url(#g-logo-ring)" stroke-width="1.3" opacity="0.9"/>
+      <circle cx="33.5" cy="13.5" r="3.1" fill="url(#g-logo-sun)"/>
+      <path d="M8 32L18 16L24 26L29 18L40 32" stroke="url(#g-logo-peaks)" stroke-width="3.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <defs>
+        <linearGradient id="g-logo" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#1f6feb"/><stop offset="0.55" stop-color="#0a1f3d"/><stop offset="1" stop-color="#05101f"/></linearGradient>
+        <linearGradient id="g-logo-ring" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#f5e3a3"/><stop offset="0.5" stop-color="#d4af37"/><stop offset="1" stop-color="#9c7a1e"/></linearGradient>
+        <linearGradient id="g-logo-peaks" x1="8" y1="32" x2="40" y2="16"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#f5e3a3"/></linearGradient>
+        <radialGradient id="g-logo-sun"><stop stop-color="#fff3cf"/><stop offset="1" stop-color="#e8b84b"/></radialGradient>
+      </defs>
+    </symbol>
+    <symbol id="ic-dashboard" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="17" cy="9" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M15.5 13.2c2.6.3 4.5 2.1 4.5 4.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="ic-user-plus" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 19.5c0-3.5 2.9-5.8 6.5-5.8s6.5 2.3 6.5 5.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M19 8v6M16 11h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-atm" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="7" y="7" width="7" height="5" rx="0.8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M7 15.5h3M7 18h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="17.5" cy="16.5" r="1" fill="currentColor"/></symbol>
+    <symbol id="ic-pin" viewBox="0 0 24 24"><path d="M12 22s7-7.1 7-12.5A7 7 0 0 0 5 9.5C5 14.9 12 22 12 22Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-logout" viewBox="0 0 24 24"><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 16l4-4-4-4M20 12H9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M20 20l-5-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="ic-card" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 9.5h19" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-camera" viewBox="0 0 24 24"><path d="M4 8h2.2l1.1-2h9.4l1.1 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.3" r="3.3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-cash" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2.5-1.5L13 21l-1-1.5L10 21l-2.5-1.5L6 21V3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 8h6M9 11.5h6M9 15h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<!-- ===================== LOGIN ===================== -->
+<section class="screen active" id="screen-login">
+  <div class="login-wrap">
+    <div class="login-hero">
+      <div class="esa-logo" style="justify-content:center; margin-bottom:10px;">
+        <svg viewBox="0 0 48 48" style="width:52px;height:52px;"><use href="#ic-mountain-logo"/></svg>
+      </div>
+      <h1>ESA Bank <span class="accent">Офис</span></h1>
+      <p>Кызматкерлер жана банк ээси үчүн башкаруу тутуму</p>
+    </div>
+    <form id="form-staff-login" class="card-surface" style="width:100%; max-width:360px;">
+      <div class="field">
+        <label>Телефон</label>
+        <input type="tel" id="staff-phone" placeholder="+996 995 223 667" required>
+      </div>
+      <div class="field">
+        <label>Сырсөз</label>
+        <input type="password" id="staff-password" required>
+      </div>
+      <div class="field-error" id="staff-login-error"></div>
+      <button type="submit" class="btn btn-primary" style="width:100%;" id="staff-login-btn">Кирүү</button>
+      <p class="login-hint">Банк ээси үчүн: ошол эле телефон жана сырсөз, эмне колдонуучу тиркемесинде.</p>
+    </form>
+  </div>
+</section>
+
+<!-- ===================== APP SHELL ===================== -->
+<div id="app-shell" style="display:none;">
+  <aside class="sidebar">
+    <div class="esa-logo" style="padding:18px 20px;">
+      <svg viewBox="0 0 48 48"><use href="#ic-mountain-logo"/></svg>
+      <div class="wordmark"><b>ESA Bank</b><span>Офис</span></div>
+    </div>
+    <nav class="side-nav">
+      <button class="side-item active" data-view="dashboard"><svg class="icon"><use href="#ic-dashboard"/></svg> Башкы бет</button>
+      <button class="side-item" data-view="clients"><svg class="icon"><use href="#ic-users"/></svg> Клиенттер</button>
+      <button class="side-item" data-view="register"><svg class="icon"><use href="#ic-user-plus"/></svg> Клиент каттоо</button>
+      <button class="side-item" data-view="devices"><svg class="icon"><use href="#ic-atm"/></svg> Банкоматтар/терминалдар</button>
+      <button class="side-item" data-view="offices"><svg class="icon"><use href="#ic-pin"/></svg> Офистер</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="staff-chip"><b id="staff-name">—</b><span id="staff-role">—</span></div>
+      <button class="side-item" id="staff-logout-btn"><svg class="icon"><use href="#ic-logout"/></svg> Чыгуу</button>
+    </div>
+  </aside>
+
+  <main class="main-area">
+    <!-- ---------- DASHBOARD ---------- -->
+    <section class="view active" id="view-dashboard">
+      <h2>Башкы бет</h2>
+      <div class="stat-grid" id="overview-stats"></div>
+    </section>
+
+    <!-- ---------- CLIENTS ---------- -->
+    <section class="view" id="view-clients">
+      <h2>Клиенттер</h2>
+      <div class="search-row">
+        <svg class="icon"><use href="#ic-search"/></svg>
+        <input type="text" id="client-search-input" placeholder="Аты, телефону же паспорт номери боюнча издөө...">
+      </div>
+      <div id="client-search-results"></div>
+    </section>
+
+    <!-- ---------- REGISTER CLIENT ---------- -->
+    <section class="view" id="view-register">
+      <h2>Жаңы клиент каттоо (паспорт боюнча)</h2>
+      <div class="two-col">
+        <form id="form-register-client" class="card-surface">
+          <div class="field"><label>Аты-жөнү</label><input type="text" id="rc-fullname" required></div>
+          <div class="field"><label>Телефон</label><input type="tel" id="rc-phone" placeholder="+996 700 123 456" required></div>
+          <div class="field"><label>Паспорттун сериясы/номери</label><input type="text" id="rc-passport-number" required></div>
+          <div class="field"><label>Ким тарабынан берилген</label><input type="text" id="rc-passport-issued-by" required></div>
+          <div class="field"><label>Туулган күнү</label><input type="date" id="rc-birth-date" required></div>
+          <div class="field"><label>Дареги</label><input type="text" id="rc-address" required></div>
+          <div class="field"><label>Убактылуу сырсөз</label><input type="text" id="rc-password" placeholder="Кеминде 6 белги" required></div>
+          <div class="field-error" id="register-client-error"></div>
+          <button type="submit" class="btn btn-primary" id="register-client-btn">Клиентти каттоо</button>
+          <div class="success-box" id="register-client-success" style="display:none;"></div>
+        </form>
+        <div class="card-surface">
+          <h4 style="margin-top:0;">Жүзүнүн сүрөтү</h4>
+          <div class="face-capture-box">
+            <video id="rc-face-video" autoplay playsinline muted></video>
+            <img id="rc-face-preview" style="display:none;">
+          </div>
+          <div class="face-capture-actions">
+            <button type="button" class="btn btn-primary" id="rc-face-capture-btn">Сүрөткө тартуу</button>
+            <button type="button" class="btn btn-secondary" id="rc-face-retake-btn" style="display:none;">Кайра тартуу</button>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:28px;">Бар болгон клиентке карта ачуу (паспорт боюнча издөө)</h3>
+      <div class="two-col">
+        <form id="form-find-passport" class="card-surface">
+          <div class="field"><label>Паспорттун сериясы/номери</label><input type="text" id="find-passport-number" required></div>
+          <div class="field-error" id="find-passport-error"></div>
+          <button type="submit" class="btn btn-secondary">Издөө</button>
+        </form>
+        <div class="card-surface" id="found-client-card" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- ---------- DEVICES ---------- -->
+    <section class="view" id="view-devices">
+      <h2>Банкоматтар жана терминалдар</h2>
+      <button class="btn btn-primary" id="open-new-device-btn" style="margin-bottom:16px;"><svg class="icon"><use href="#ic-plus"/></svg> Жаңы түзмөк</button>
+      <div id="devices-list"></div>
+    </section>
+
+    <!-- ---------- OFFICES ---------- -->
+    <section class="view" id="view-offices">
+      <h2>Офистер</h2>
+      <form id="form-new-office" class="card-surface" style="margin-bottom:18px;">
+        <div class="field-row">
+          <div class="field"><label>Аты</label><input type="text" id="office-name" required></div>
+          <div class="field"><label>Телефон</label><input type="text" id="office-phone"></div>
+        </div>
+        <div class="field"><label>Дареги</label><input type="text" id="office-address"></div>
+        <div class="field-row">
+          <div class="field"><label>Lat</label><input type="number" step="0.0001" id="office-lat" value="42.8746"></div>
+          <div class="field"><label>Lng</label><input type="number" step="0.0001" id="office-lng" value="74.5698"></div>
+        </div>
+        <div class="field"><label>Жумуш убактысы</label><input type="text" id="office-hours" value="09:00–18:00"></div>
+        <button type="submit" class="btn btn-primary">Офис кошуу</button>
+      </form>
+      <div id="offices-list"></div>
+    </section>
+  </main>
+</div>
+
+<!-- ===================== DEVICE DETAIL / NEW DEVICE MODAL ===================== -->
+<div class="modal-overlay" id="device-modal">
+  <div class="modal-sheet">
+    <button class="modal-close-x" data-close-modal="device-modal"><svg class="icon" style="width:15px;height:15px;"><use href="#ic-close"/></svg></button>
+    <h3 id="device-modal-title">Жаңы түзмөк</h3>
+    <div id="device-modal-body"></div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="office.js"></script>
+</body>
+</html>

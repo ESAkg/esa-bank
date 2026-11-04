@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ESA Bank — Банкомат / Терминал</title>
+<meta name="description" content="ESA Bank — өзүн-өзү тейлөө банкоматы жана терминалы">
+<meta name="theme-color" content="#0a1f3d">
+<link rel="icon" href="../icons/icon-64.png" type="image/png">
+<link rel="stylesheet" href="../css/brand.css">
+<link rel="stylesheet" href="terminal.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="ic-mountain-logo" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="24" fill="url(#g-logo)"/>
+      <circle cx="24" cy="24" r="22.6" fill="none" stroke="url(#g-logo-ring)" stroke-width="1.3" opacity="0.9"/>
+      <circle cx="33.5" cy="13.5" r="3.1" fill="url(#g-logo-sun)"/>
+      <path d="M8 32L18 16L24 26L29 18L40 32" stroke="url(#g-logo-peaks)" stroke-width="3.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <defs>
+        <linearGradient id="g-logo" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#1f6feb"/><stop offset="0.55" stop-color="#0a1f3d"/><stop offset="1" stop-color="#05101f"/></linearGradient>
+        <linearGradient id="g-logo-ring" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#f5e3a3"/><stop offset="0.5" stop-color="#d4af37"/><stop offset="1" stop-color="#9c7a1e"/></linearGradient>
+        <linearGradient id="g-logo-peaks" x1="8" y1="32" x2="40" y2="16"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#f5e3a3"/></linearGradient>
+        <radialGradient id="g-logo-sun"><stop stop-color="#fff3cf"/><stop offset="1" stop-color="#e8b84b"/></radialGradient>
+      </defs>
+    </symbol>
+    <symbol id="ic-cash-out" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v3M12 19v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-cash-in" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 9v6M9 12h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-arrow-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="ic-camera" viewBox="0 0 24 24"><path d="M4 8h2.2l1.1-2h9.4l1.1 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.3" r="3.3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2.5-1.5L13 21l-1-1.5L10 21l-2.5-1.5L6 21V3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 8h6M9 11.5h6M9 15h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="kiosk-frame">
+
+  <!-- ===================== DEVICE SETUP / LOGIN ===================== -->
+  <section class="k-screen active" id="k-screen-setup">
+    <div class="setup-wrap">
+      <div class="esa-logo" style="justify-content:center;margin-bottom:14px;">
+        <svg viewBox="0 0 48 48" style="width:56px;height:56px;"><use href="#ic-mountain-logo"/></svg>
+      </div>
+      <h1>ESA Bank <span class="accent">Терминал</span></h1>
+      <p class="setup-sub">Түзмөктү иштетүү үчүн киоск маалыматтарын киргизиңиз</p>
+      <form id="form-device-login" class="card-surface" style="width:100%;max-width:380px;margin-top:18px;">
+        <div class="field">
+          <label>Түзмөктүн коду</label>
+          <input type="text" id="device-code" placeholder="ESA-1195" autocapitalize="characters" required>
+        </div>
+        <div class="field">
+          <label>Сырсөз</label>
+          <input type="password" id="device-password" required>
+        </div>
+        <div class="field-error" id="device-login-error"></div>
+        <button type="submit" class="btn btn-primary" style="width:100%;" id="device-login-btn">Иштетүү</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== IDLE / QR PAIRING ===================== -->
+  <section class="k-screen" id="k-screen-idle">
+    <button class="gear-btn" id="idle-gear-btn"><svg class="icon"><use href="#ic-gear"/></svg></button>
+    <div class="idle-wrap">
+      <div class="esa-logo" style="justify-content:center;margin-bottom:6px;">
+        <svg viewBox="0 0 48 48" style="width:48px;height:48px;"><use href="#ic-mountain-logo"/></svg>
+      </div>
+      <h2>ESA Bank</h2>
+      <p class="idle-device-label" id="idle-device-label">—</p>
+      <div class="qr-box">
+        <div id="qr-canvas"></div>
+      </div>
+      <p class="idle-instruction">Телефонуңуздагы ESA Bank тиркемесинен<br>QR-кодду скандаңыз</p>
+      <div class="idle-clock" id="idle-clock">--:--</div>
+    </div>
+  </section>
+
+  <!-- ===================== CLIENT MENU ===================== -->
+  <section class="k-screen" id="k-screen-menu">
+    <div class="k-topbar">
+      <div class="k-topbar-user">
+        <b id="menu-client-name">—</b>
+        <span id="menu-client-id">—</span>
+      </div>
+      <button class="btn btn-sm btn-secondary" id="menu-end-session-btn">Чыгуу</button>
+    </div>
+    <div class="menu-balance-card card-surface">
+      <div class="k">Капчыктагы сумма</div>
+      <div class="v" id="menu-wallet-balance">0 сом</div>
+    </div>
+    <div class="menu-actions-grid">
+      <button class="menu-action-btn" id="menu-withdraw-btn">
+        <svg class="icon-lg"><use href="#ic-cash-out"/></svg>
+        <span>Накталай акча алуу</span>
+      </button>
+      <button class="menu-action-btn" id="menu-deposit-btn">
+        <svg class="icon-lg"><use href="#ic-cash-in"/></svg>
+        <span>Эсепти толуктоо</span>
+      </button>
+    </div>
+    <div class="menu-cards-row" id="menu-cards-row"></div>
+  </section>
+
+  <!-- ===================== WITHDRAW: AMOUNT ===================== -->
+  <section class="k-screen" id="k-screen-withdraw-amount">
+    <div class="k-topbar">
+      <button class="icon-back-btn" data-k-back="k-screen-menu"><svg class="icon"><use href="#ic-arrow-left"/></svg></button>
+      <h3>Накталай акча алуу</h3>
+      <span style="width:40px;"></span>
+    </div>
+    <div class="amount-display" id="withdraw-amount-display">0 сом</div>
+    <div class="quick-amounts" id="withdraw-quick-amounts">
+      <button class="quick-amt-btn" data-amt="1000">1 000</button>
+      <button class="quick-amt-btn" data-amt="2000">2 000</button>
+      <button class="quick-amt-btn" data-amt="5000">5 000</button>
+      <button class="quick-amt-btn" data-amt="10000">10 000</button>
+      <button class="quick-amt-btn" data-amt="20000">20 000</button>
+      <button class="quick-amt-btn" data-amt="50000">50 000</button>
+    </div>
+    <div class="keypad" id="withdraw-keypad">
+      <button class="keypad-btn" data-k="1">1</button><button class="keypad-btn" data-k="2">2</button><button class="keypad-btn" data-k="3">3</button>
+      <button class="keypad-btn" data-k="4">4</button><button class="keypad-btn" data-k="5">5</button><button class="keypad-btn" data-k="6">6</button>
+      <button class="keypad-btn" data-k="7">7</button><button class="keypad-btn" data-k="8">8</button><button class="keypad-btn" data-k="9">9</button>
+      <button class="keypad-btn" data-k="000">000</button><button class="keypad-btn" data-k="0">0</button><button class="keypad-btn keypad-del" data-k="del">⌫</button>
+    </div>
+    <div class="field-error" id="withdraw-amount-error"></div>
+    <button class="btn btn-primary btn-lg" id="withdraw-continue-btn" style="width:100%;">Улантуу</button>
+  </section>
+
+  <!-- ===================== WITHDRAW: PROCESSING ===================== -->
+  <section class="k-screen" id="k-screen-withdraw-processing">
+    <div class="processing-wrap">
+      <div class="spinner"></div>
+      <p>Операция иштелүүдө...</p>
+      <p class="processing-sub">Акчаны чыгарбаңыз, күтө туруңуз</p>
+    </div>
+  </section>
+
+  <!-- ===================== WITHDRAW: RECEIPT ===================== -->
+  <section class="k-screen" id="k-screen-withdraw-receipt">
+    <div class="receipt-wrap">
+      <div class="result-check-circle"><svg class="icon-lg"><use href="#ic-check"/></svg></div>
+      <h3>Акча берилди!</h3>
+      <div class="paper-receipt" id="withdraw-receipt-paper"></div>
+      <button class="btn btn-primary btn-lg" id="withdraw-done-btn" style="width:100%;margin-top:18px;">Аяктоо</button>
+    </div>
+  </section>
+
+  <!-- ===================== DEPOSIT: SCAN ===================== -->
+  <section class="k-screen" id="k-screen-deposit-scan">
+    <div class="k-topbar">
+      <button class="icon-back-btn" id="deposit-cancel-btn"><svg class="icon"><use href="#ic-close"/></svg></button>
+      <h3>Эсепти толуктоо</h3>
+      <div class="deposit-timer" id="deposit-timer">60</div>
+    </div>
+    <div class="deposit-total-box">
+      <div class="k">Жалпы сумма</div>
+      <div class="v" id="deposit-total">0 сом</div>
+      <div class="deposit-min-hint" id="deposit-min-hint">Минималдуу сумма: 100 000 сом · Комиссия: 0 сом</div>
+    </div>
+    <div class="scanner-slot">
+      <svg class="icon-lg"><use href="#ic-camera"/></svg>
+      <p id="scanner-status-text">Купюраны тандап, машинага салыңыз</p>
+    </div>
+    <p class="bills-hint">Купюраны тандаңыз:</p>
+    <div class="bills-grid" id="deposit-bills-grid">
+      <button class="bill-btn" data-denom="50">50 сом</button>
+      <button class="bill-btn" data-denom="100">100 сом</button>
+      <button class="bill-btn" data-denom="200">200 сом</button>
+      <button class="bill-btn" data-denom="500">500 сом</button>
+      <button class="bill-btn" data-denom="1000">1000 сом</button>
+      <button class="bill-btn" data-denom="2000">2000 сом</button>
+    </div>
+    <div class="field-error" id="deposit-scan-error"></div>
+    <button class="btn btn-primary btn-lg" id="deposit-confirm-btn" style="width:100%;" disabled>Ырастоо жана эсепке кошуу</button>
+  </section>
+
+  <!-- ===================== DEPOSIT: PROCESSING ===================== -->
+  <section class="k-screen" id="k-screen-deposit-processing">
+    <div class="processing-wrap">
+      <div class="spinner"></div>
+      <p>Акча эсепке кошулууда...</p>
+    </div>
+  </section>
+
+  <!-- ===================== DEPOSIT: RECEIPT ===================== -->
+  <section class="k-screen" id="k-screen-deposit-receipt">
+    <div class="receipt-wrap">
+      <div class="result-check-circle"><svg class="icon-lg"><use href="#ic-check"/></svg></div>
+      <h3>Эсеп толукталды!</h3>
+      <div class="paper-receipt" id="deposit-receipt-paper"></div>
+      <button class="btn btn-primary btn-lg" id="deposit-done-btn" style="width:100%;margin-top:18px;">Аяктоо</button>
+    </div>
+  </section>
+
+  <!-- ===================== TIMEOUT / CANCELLED MODAL ===================== -->
+  <div class="k-overlay" id="k-timeout-overlay">
+    <div class="k-overlay-card">
+      <h3 id="k-overlay-title">Убакыт бүттү</h3>
+      <p id="k-overlay-text">Операция токтотулду.</p>
+      <button class="btn btn-primary" id="k-overlay-ok-btn">Түшүндүм</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="terminal.js"></script>
+</body>
+</html>

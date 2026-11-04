@@ -33,4 +33,35 @@ function money(n) {
   return Math.round(Number(n) * 100) / 100;
 }
 
-module.exports = { normalizePhone, formatPhone, genAccountNumber, genReceiptNo, money };
+// ---------- Карты ----------
+// BIN-подобные префиксы — вымышленные, принадлежат только ESA Bank.
+const CARD_BIN = { visa: '4169', elkart: '6220' };
+function genCardNumberSimple(type) {
+  const bin = CARD_BIN[type] || '9999';
+  const g = () => String(Math.floor(1000 + Math.random() * 9000));
+  return `${bin} ${g()} ${g()} ${g()}`;
+}
+function genCvv() {
+  return String(Math.floor(100 + Math.random() * 900));
+}
+function cardExpiry(yearsFromNow) {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + yearsFromNow);
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(-2)}`;
+}
+function maskCardNumber(number) {
+  const digits = String(number).replace(/\s/g, '');
+  return `•• ${digits.slice(-4)}`;
+}
+
+// ---------- Устройства (банкоматы / терминалы) ----------
+function genDeviceCode(kind) {
+  const prefix = kind === 'atm' ? 'ATM' : kind === 'terminal' ? 'TRM' : 'ESA';
+  const rnd = Math.floor(1000 + Math.random() * 9000);
+  return `${prefix}-${rnd}`;
+}
+
+module.exports = {
+  normalizePhone, formatPhone, genAccountNumber, genReceiptNo, money,
+  genCardNumberSimple, genCvv, cardExpiry, maskCardNumber, genDeviceCode
+};

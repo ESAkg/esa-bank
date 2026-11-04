@@ -1,0 +1,80 @@
+/* ======================================================
+   ESA Bank — общая фирменная база для ВСЕХ 4 сайтов
+   (приложение, офис, банкомат/терминал, публичный сайт).
+   Подключается наряду с собственным стилем каждого сайта,
+   чтобы цвета, кнопки, логотип и шрифт совпадали везде.
+   ====================================================== */
+:root {
+  --navy-900: #0a1f3d;
+  --navy-800: #0f2a52;
+  --navy-700: #15376a;
+  --navy-600: #1c4784;
+  --blue-500: #1f6feb;
+  --blue-400: #3b82f6;
+  --accent-green: #1db954;
+  --accent-red: #e5484d;
+  --accent-gold: #f5c518;
+  --gold-300: #ffe8a3;
+  --gold-500: #d4a62a;
+  --text-light: #eef3fb;
+  --text-dim: #9fb3d1;
+  --card-bg: #122a4e;
+  --card-bg-2: #0d2344;
+  --border-subtle: rgba(255,255,255,0.08);
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+  --font: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  font-family: var(--font);
+  color: var(--text-light);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+button { font-family: inherit; }
+input, select, textarea { font-family: inherit; }
+
+.esa-logo { display: flex; align-items: center; gap: 10px; }
+.esa-logo svg { width: 36px; height: 36px; flex-shrink: 0; }
+.esa-logo .wordmark { line-height: 1.1; }
+.esa-logo .wordmark b { font-size: 19px; font-weight: 800; letter-spacing: 0.3px; display: block; }
+.esa-logo .wordmark span { font-size: 10.5px; color: var(--text-dim); display: block; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 20px; border-radius: var(--radius-sm);
+  border: none; font-size: 15px; font-weight: 700; cursor: pointer;
+  transition: transform .08s ease, opacity .15s, background .15s ease;
+  text-decoration: none;
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn-primary { background: linear-gradient(135deg, var(--blue-500), var(--blue-400)); color: #fff; box-shadow: 0 10px 22px -8px rgba(31,111,235,0.55); }
+.btn-secondary { background: transparent; border: 1px solid var(--border-subtle); color: var(--text-light); }
+.btn-outline { background: transparent; border: 1.5px dashed var(--border-subtle); color: var(--text-dim); }
+.btn-ghost { background: none; color: var(--blue-400); font-weight: 600; }
+.btn-danger { background: var(--accent-red); color: #fff; }
+.btn-gold { background: linear-gradient(135deg, var(--gold-500), var(--accent-gold)); color: #241c02; }
+.btn-sm { padding: 9px 14px; font-size: 13px; }
+.btn-lg { padding: 16px 28px; font-size: 16.5px; }
+
+.icon { width: 20px; height: 20px; flex-shrink: 0; vertical-align: middle; }
+.icon-lg { width: 40px; height: 40px; }
+
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+.pill-green { background: rgba(29,185,84,0.15); color: var(--accent-green); }
+.pill-red { background: rgba(229,72,77,0.15); color: var(--accent-red); }
+.pill-gold { background: rgba(245,197,24,0.15); color: var(--accent-gold); }
+.pill-blue { background: rgba(31,111,235,0.15); color: var(--blue-400); }
+
+.card-surface {
+  background: var(--card-bg-2); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); padding: 16px;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 8px; }

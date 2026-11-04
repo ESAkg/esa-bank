@@ -12,13 +12,28 @@ const { URL } = require('url');
 
 const storeDb = require('./db/store');
 const { hashPassword, verifyPassword, newToken, newId, sixDigitCode } = require('./lib/security');
-const { normalizePhone, formatPhone, genAccountNumber, genReceiptNo, money } = require('./lib/helpers');
+const {
+  normalizePhone, formatPhone, genAccountNumber, genReceiptNo, money,
+  genCardNumberSimple, genCvv, cardExpiry, maskCardNumber, genDeviceCode
+} = require('./lib/helpers');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 дней
+const STAFF_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 часов — рабочая смена в офисе
 const RESET_CODE_TTL_MS = 10 * 60 * 1000; // 10 минут
-const STARTING_BALANCE = 25000; // стартовый бонус для новых клиентов (демо)
+const STARTING_BALANCE = 0; // новый клиент начинает с пустого кошелька (0 сом), как в реальном банке
 const OWNER_DISPLAY_BALANCE = 999999999; // счёт владельца — безлимитный, баланс не уменьшается
+const DEVICE_PAIR_TTL_MS = 3 * 60 * 1000; // 3 минуты на то, чтобы подойти к терминалу после сканирования
+const DEPOSIT_SESSION_TTL_MS = 60 * 1000; // 60 секунд на сканирование купюр в терминале
+const DEPOSIT_MIN_AMOUNT = 100000; // минимальная сумма пополнения через терминал (как описал владелец банка)
+
+// Карточные тарифы ESA Bank (вымышленные, для демо)
+const CARD_PLANS = {
+  visa: { label: 'ESA Visa Classic', annualFee: 500, currency: 'KGS', network: 'Visa', years: 3 },
+  elkart: { label: 'ESA Элкарт', annualFee: 150, currency: 'KGS', network: 'Элкарт', years: 5 }
+};
+const PIGGY_MODES = ['manual', 'daily', 'weekly', 'monthly'];
+const DEVICE_DENOMS = [2000, 1000, 500, 200, 100, 50];
 
 // Категории операций — используются для разбивки "месячные траты" на экране статистики
 const CATEGORIES = ['food', 'transport', 'bills', 'entertainment', 'shopping', 'health', 'other'];
@@ -223,6 +238,209 @@ function parseQrPayload(payload) {
   }
 }
 
+// QR терминала/банкомата: ESA-DEVICE|<deviceCode>|<pairToken>
+function makeDevicePairPayload(device) {
+  const raw = `ESA-DEVICE|${device.deviceCode}|${device.pairToken}`;
+  return Buffer.from(raw, 'utf8').toString('base64url');
+}
+function parseDevicePairPayload(payload) {
+  try {
+    const raw = Buffer.from(String(payload), 'base64url').toString('utf8');
+    const parts = raw.split('|');
+    if (parts.length !== 3 || parts[0] !== 'ESA-DEVICE') return null;
+    return { deviceCode: parts[1], pairToken: parts[2] };
+  } catch (_) {
+    return null;
+  }
+}
+
+// ---------- Карты ----------
+function findCardsByUserId(userId) {
+  return db().cards.filter(c => c.userId === userId && c.status !== 'closed');
+}
+function findCardById(id) {
+  return db().cards.find(c => c.id === id);
+}
+function publicCard(card) {
+  return {
+    id: card.id,
+    type: card.type,
+    label: CARD_PLANS[card.type] ? CARD_PLANS[card.type].label : 'ESA Card',
+    network: CARD_PLANS[card.type] ? CARD_PLANS[card.type].network : '',
+    number: card.number,
+    masked: maskCardNumber(card.number),
+    holderName: card.holderName,
+    expiry: card.expiry,
+    cvv: card.cvv,
+    nickname: card.nickname,
+    themeId: card.themeId,
+    balance: money(card.balance),
+    annualFee: card.annualFee,
+    feeDueAt: card.feeDueAt,
+    status: card.status,
+    createdAt: card.createdAt
+  };
+}
+function issueCard(userId, { type, themeId, nickname }) {
+  const plan = CARD_PLANS[type] || CARD_PLANS.visa;
+  const user = findUserById(userId);
+  const d = db();
+  const card = {
+    id: newId(),
+    userId,
+    type: CARD_PLANS[type] ? type : 'visa',
+    number: genCardNumberSimple(type),
+    holderName: (user.fullName || '').toUpperCase(),
+    expiry: cardExpiry(plan.years),
+    cvv: genCvv(),
+    themeId: themeId || 'emerald',
+    nickname: (nickname || plan.label).slice(0, 40),
+    balance: 0, // открытие карты не создаёт новых денег — пополняется из кошелька
+    annualFee: plan.annualFee,
+    feeDueAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    status: 'active',
+    createdAt: new Date().toISOString()
+  };
+  d.cards.push(card);
+  storeDb.save();
+  return card;
+}
+
+// Ежегодное списание за обслуживание карты — проверяется лениво (без
+// настоящего cron-а) при каждом входе пользователя в приложение.
+function chargeDueCardFees(userId) {
+  const d = db();
+  const account = findAccountByUserId(userId);
+  if (!account) return;
+  const now = Date.now();
+  findCardsByUserId(userId).forEach(card => {
+    if (card.status !== 'active') return;
+    if (!card.annualFee || card.annualFee <= 0) return;
+    let dueAt = new Date(card.feeDueAt).getTime();
+    let guard = 0;
+    while (dueAt <= now && guard < 5) {
+      guard++;
+      if (account.isOwner || account.balance >= card.annualFee) {
+        if (!account.isOwner) account.balance = money(account.balance - card.annualFee);
+        d.transactions.push({
+          id: newId(), kind: 'card_fee',
+          fromAccountId: account.id, toAccountId: null,
+          fromCardId: null, toCardId: card.id,
+          userId,
+          fromName: findUserById(userId).fullName, toName: `${card.nickname} — жыл сайынкы тейлөө`,
+          amount: card.annualFee, currency: 'KGS', method: 'card_fee',
+          note: 'Картаны тейлөө үчүн жыл сайынкы төлөм', category: 'bills',
+          status: 'success', receiptNo: genReceiptNo(), createdAt: new Date().toISOString()
+        });
+      }
+      dueAt += 365 * 24 * 60 * 60 * 1000;
+    }
+    card.feeDueAt = new Date(dueAt).toISOString();
+  });
+  storeDb.save();
+}
+
+// ---------- Копилки ----------
+function findPiggyByUserId(userId) {
+  return db().piggyBanks.filter(p => p.userId === userId);
+}
+function publicPiggy(p) {
+  return {
+    id: p.id, name: p.name, icon: p.icon || 'piggy',
+    targetAmount: p.targetAmount, balance: money(p.balance),
+    mode: p.mode, autoAmount: p.autoAmount, createdAt: p.createdAt
+  };
+}
+function runPiggyAutoDeposits(userId) {
+  const d = db();
+  const account = findAccountByUserId(userId);
+  if (!account || account.isOwner) return;
+  const now = Date.now();
+  const stepMs = { daily: 24*60*60*1000, weekly: 7*24*60*60*1000, monthly: 30*24*60*60*1000 };
+  findPiggyByUserId(userId).forEach(p => {
+    if (p.mode === 'manual' || !p.autoAmount) return;
+    const step = stepMs[p.mode];
+    if (!step) return;
+    let last = new Date(p.lastAutoAt || p.createdAt).getTime();
+    let guard = 0;
+    while (now - last >= step && guard < 30) {
+      guard++;
+      if (account.balance < p.autoAmount) break; // недостаточно средств — пропускаем автопополнение
+      account.balance = money(account.balance - p.autoAmount);
+      p.balance = money(p.balance + p.autoAmount);
+      d.transactions.push({
+        id: newId(), kind: 'piggy_deposit',
+        fromAccountId: account.id, toAccountId: null, piggyId: p.id, userId,
+        fromName: findUserById(userId).fullName, toName: `Копилка «${p.name}»`,
+        amount: p.autoAmount, currency: 'KGS', method: 'piggy_auto',
+        note: 'Автопополнение копилки', category: 'other',
+        status: 'success', receiptNo: genReceiptNo(), createdAt: new Date().toISOString()
+      });
+      last += step;
+    }
+    p.lastAutoAt = new Date(last).toISOString();
+  });
+  storeDb.save();
+}
+
+// ---------- Сотрудники / офис ----------
+function findStaffByPhone(phone) {
+  return db().staff.find(s => s.phone === phone);
+}
+function findStaffById(id) {
+  return db().staff.find(s => s.id === id);
+}
+function createStaffSession(staffId) {
+  const token = newToken();
+  db().staffSessions.push({ token, staffId, createdAt: new Date().toISOString(), expiresAt: Date.now() + STAFF_SESSION_TTL_MS });
+  storeDb.save();
+  return token;
+}
+function getStaffAuthUser(req) {
+  const header = req.headers['authorization'] || '';
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+  const s = db().staffSessions.find(s => s.token === match[1]);
+  if (!s || s.expiresAt < Date.now()) return null;
+  return findStaffById(s.staffId);
+}
+function publicStaff(staff) {
+  return { id: staff.id, fullName: staff.fullName, role: staff.role, phone: staff.phone, phoneFormatted: formatPhone(staff.phone) };
+}
+
+// ---------- Устройства (банкомат + терминал) ----------
+function findDeviceByCode(code) {
+  return db().devices.find(d => d.deviceCode === code);
+}
+function findDeviceById(id) {
+  return db().devices.find(d => d.id === id);
+}
+function publicDevice(device, { withCash } = {}) {
+  const out = {
+    id: device.id, deviceCode: device.deviceCode, kind: device.kind, label: device.label,
+    location: device.location, status: device.status, createdAt: device.createdAt
+  };
+  if (withCash) out.cash = device.cash;
+  return out;
+}
+function deviceCashTotal(device) {
+  return Object.entries(device.cash || {}).reduce((sum, [denom, count]) => sum + Number(denom) * count, 0);
+}
+// Жадный разбор суммы на доступные в устройстве купюры. Возвращает null, если
+// устройство физически не может выдать точную сумму имеющимися номиналами.
+function breakdownCash(cash, amount) {
+  const denoms = DEVICE_DENOMS.slice().sort((a, b) => b - a);
+  const used = {};
+  let remaining = amount;
+  for (const denom of denoms) {
+    const available = cash[denom] || 0;
+    const want = Math.min(available, Math.floor(remaining / denom));
+    if (want > 0) { used[denom] = want; remaining -= want * denom; }
+  }
+  if (remaining !== 0) return null;
+  return used;
+}
+
 // ---------- HTTP-утилиты ----------
 
 function sendJson(res, status, obj) {
@@ -273,6 +491,13 @@ const MIME = {
   '.ico': 'image/x-icon'
 };
 
+// ESA Bank — это теперь 4 сайта на одном сервере: клиентское приложение
+// (корень "/"), офис банка ("/office/"), банкомат+терминал ("/terminal/")
+// и публичный сайт банка ("/about/"). Каждый — своя отдельная SPA, поэтому
+// у каждого корня собственный "мягкий" 404-фолбэк на СВОЙ index.html, а не
+// на index.html другого сайта.
+const SITE_ROOTS = ['office', 'terminal', 'about'];
+
 function serveStatic(req, res, pathname) {
   let filePath = pathname === '/' ? '/index.html' : pathname;
   filePath = path.normalize(filePath).replace(/^(\.\.[/\\])+/, '');
@@ -283,55 +508,99 @@ function serveStatic(req, res, pathname) {
   if (DENYLIST_PREFIXES.includes(firstSegment)) {
     res.writeHead(403); res.end('Forbidden'); return;
   }
+  const isKnownSiteRoot = SITE_ROOTS.includes(firstSegment);
+  const fallbackPath = isKnownSiteRoot ? `/${firstSegment}/index.html` : '/index.html';
 
-  const fullPath = path.join(WEB_ROOT, filePath);
-  if (!fullPath.startsWith(WEB_ROOT)) {
-    res.writeHead(403); res.end('Forbidden'); return;
-  }
-  fs.readFile(fullPath, (err, data) => {
-    if (err) {
-      // SPA fallback -> index.html
-      fs.readFile(path.join(WEB_ROOT, 'index.html'), (err2, data2) => {
-        if (err2) { res.writeHead(404); res.end('Not found'); return; }
-        res.writeHead(200, { 'Content-Type': MIME['.html'] });
-        res.end(data2);
-      });
-      return;
+  function attempt(fp, triedIndexAppend) {
+    const fullPath = path.join(WEB_ROOT, fp);
+    if (!fullPath.startsWith(WEB_ROOT)) {
+      res.writeHead(403); res.end('Forbidden'); return;
     }
-    const ext = path.extname(fullPath).toLowerCase();
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
-    res.end(data);
-  });
+    fs.readFile(fullPath, (err, data) => {
+      if (err) {
+        // "/office" (без слэша) или директория без явного файла -> пробуем .../index.html один раз
+        if (!triedIndexAppend) {
+          const withIndex = fp.replace(/\/+$/, '') + '/index.html';
+          return attempt(withIndex, true);
+        }
+        // Ничего не нашли — мягкий фолбэк на index.html ТОГО ЖЕ сайта (SPA-роутинг)
+        if (fp === fallbackPath) { res.writeHead(404); res.end('Not found'); return; }
+        fs.readFile(path.join(WEB_ROOT, fallbackPath), (err2, data2) => {
+          if (err2) { res.writeHead(404); res.end('Not found'); return; }
+          res.writeHead(200, { 'Content-Type': MIME['.html'] });
+          res.end(data2);
+        });
+        return;
+      }
+      const ext = path.extname(fullPath).toLowerCase();
+      res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+      res.end(data);
+    });
+  }
+  attempt(filePath, false);
 }
 
 // ---------- API-роуты ----------
 
 const routes = [];
 function route(method, pattern, handler) {
-  routes.push({ method, pattern, handler });
+  // Поддержка параметров вида /api/office/devices/:id
+  const paramNames = [];
+  const regex = new RegExp('^' + pattern.replace(/:[a-zA-Z0-9_]+/g, (m) => {
+    paramNames.push(m.slice(1));
+    return '([^/]+)';
+  }) + '$');
+  routes.push({ method, pattern, regex, paramNames, handler });
 }
 
 function matchRoute(method, pathname) {
   for (const r of routes) {
     if (r.method !== method) continue;
-    if (r.pattern === pathname) return { handler: r.handler, params: {} };
+    const m = r.regex.exec(pathname);
+    if (!m) continue;
+    const params = {};
+    r.paramNames.forEach((name, i) => { params[name] = decodeURIComponent(m[i + 1]); });
+    return { handler: r.handler, params };
   }
   return null;
 }
 
 // --- Регистрация ---
+// Регистрация в приложении — теперь, как в настоящем банке, требует
+// паспортные данные и снимок лица (как при открытии счёта в офисе), а не
+// только имя и телефон.
 route('POST', '/api/auth/register', async (req, res) => {
   const body = await readJsonBody(req);
   const fullName = (body.fullName || '').trim();
   const phone = normalizePhone(body.phone);
   const password = body.password || '';
+  const passportNumber = (body.passportNumber || '').trim();
+  const birthDate = body.birthDate || '';
+  const facePhoto = body.facePhoto || null;
 
   if (fullName.length < 2) return sendJson(res, 400, { error: 'Толук атыңызды туура киргизиңиз (Укажите корректное имя).' });
   if (phone.length !== 12) return sendJson(res, 400, { error: 'Телефон номерин туура киргизиңиз (Укажите корректный номер телефона).' });
   if (password.length < 6) return sendJson(res, 400, { error: 'Купуя сөз кеминде 6 белгиден турушу керек (Пароль должен быть не короче 6 символов).' });
+  if (!passportNumber) return sendJson(res, 400, { error: 'Паспорттун номерин киргизиңиз (Укажите номер паспорта).' });
+  if (!birthDate) return sendJson(res, 400, { error: 'Туулган күнүңүздү киргизиңиз (Укажите дату рождения).' });
+  if (!facePhoto) return sendJson(res, 400, { error: 'Жүзүңүздүн сүрөтүн тартыңыз (Сделайте фото лица).' });
   if (findUserByPhone(phone)) return sendJson(res, 409, { error: 'Бул номер менен колдонуучу буга чейин катталган (Этот номер уже зарегистрирован).' });
+  if (db().users.some(u => u.kyc && u.kyc.passportNumber === passportNumber)) {
+    return sendJson(res, 409, { error: 'Бул паспорт менен колдонуучу буга чейин катталган (Клиент с этим паспортом уже зарегистрирован).' });
+  }
 
   const { user, account } = createUserWithAccount({ fullName, phone, password });
+  user.kyc = {
+    passportNumber,
+    passportIssuedBy: (body.passportIssuedBy || '').trim(),
+    passportIssuedAt: body.passportIssuedAt || null,
+    birthDate,
+    address: (body.address || '').trim(),
+    facePhoto,
+    verifiedByStaffId: null, // самостоятельная регистрация через приложение
+    verifiedAt: new Date().toISOString()
+  };
+  storeDb.save();
   const token = createSession(user.id);
   sendJson(res, 201, { token, user: publicUser(user, account) });
 });
@@ -411,6 +680,8 @@ route('POST', '/api/auth/reset-password', async (req, res) => {
 route('GET', '/api/me', async (req, res) => {
   const user = getAuthUser(req);
   if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла). Кайра киргиле.' });
+  chargeDueCardFees(user.id);
+  runPiggyAutoDeposits(user.id);
   const account = findAccountByUserId(user.id);
   sendJson(res, 200, { user: publicUser(user, account) });
 });
@@ -557,6 +828,751 @@ function executeTransfer({ fromAccount, toAccount, fromUser, toUser, amount, met
   };
 }
 
+// =======================================================================
+//  КАРТЫ
+// =======================================================================
+
+// --- Тарифы на карты (для экрана открытия карты) ---
+route('GET', '/api/cards/plans', async (req, res) => {
+  sendJson(res, 200, { plans: Object.entries(CARD_PLANS).map(([type, p]) => ({ type, ...p })) });
+});
+
+// --- Мои карты ---
+route('GET', '/api/cards', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  chargeDueCardFees(user.id);
+  sendJson(res, 200, { cards: findCardsByUserId(user.id).map(publicCard) });
+});
+
+// --- Открыть новую карту (сам клиент, из приложения) ---
+route('POST', '/api/cards', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const body = await readJsonBody(req);
+  const type = CARD_PLANS[body.type] ? body.type : null;
+  if (!type) return sendJson(res, 400, { error: 'Картанын түрүн тандаңыз: Visa же Элкарт (Выберите тип карты: Visa или Элкарт).' });
+  const existing = findCardsByUserId(user.id).filter(c => c.type === type);
+  if (existing.length >= 3) return sendJson(res, 400, { error: 'Бул түрдөгү карталардын саны чектелген (Достигнут лимит карт этого типа).' });
+  const card = issueCard(user.id, { type, themeId: body.themeId, nickname: body.nickname });
+  sendJson(res, 201, { card: publicCard(card) });
+});
+
+function requireOwnCard(user, id) {
+  const card = findCardById(id);
+  if (!card || card.userId !== user.id || card.status === 'closed') return null;
+  return card;
+}
+
+route('POST', '/api/cards/:id/toggle-freeze', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const card = requireOwnCard(user, params.id);
+  if (!card) return sendJson(res, 404, { error: 'Карта табылган жок (Карта не найдена).' });
+  card.status = card.status === 'frozen' ? 'active' : 'frozen';
+  storeDb.save();
+  sendJson(res, 200, { card: publicCard(card) });
+});
+
+route('POST', '/api/cards/:id/close', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const card = requireOwnCard(user, params.id);
+  if (!card) return sendJson(res, 404, { error: 'Карта табылган жок (Карта не найдена).' });
+  if (card.balance > 0) {
+    const account = findAccountByUserId(user.id);
+    if (!account.isOwner) account.balance = money(account.balance + card.balance);
+    card.balance = 0;
+  }
+  card.status = 'closed';
+  storeDb.save();
+  sendJson(res, 200, { ok: true });
+});
+
+route('POST', '/api/cards/:id/rename', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const card = requireOwnCard(user, params.id);
+  if (!card) return sendJson(res, 404, { error: 'Карта табылган жок (Карта не найдена).' });
+  const body = await readJsonBody(req);
+  const name = (body.nickname || '').trim().slice(0, 40);
+  if (!name) return sendJson(res, 400, { error: 'Атын киргизиңиз (Укажите название).' });
+  card.nickname = name;
+  storeDb.save();
+  sendJson(res, 200, { card: publicCard(card) });
+});
+
+route('POST', '/api/cards/:id/theme', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const card = requireOwnCard(user, params.id);
+  if (!card) return sendJson(res, 404, { error: 'Карта табылган жок (Карта не найдена).' });
+  const body = await readJsonBody(req);
+  card.themeId = (body.themeId || 'emerald').slice(0, 30);
+  storeDb.save();
+  sendJson(res, 200, { card: publicCard(card) });
+});
+
+// --- Внутренний перевод: кошелёк <-> своя карта ---
+route('POST', '/api/transfer/internal', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const body = await readJsonBody(req);
+  const amount = money(body.amount);
+  const fromType = body.fromType, toType = body.toType; // 'wallet' | 'card'
+  if (!amount || amount <= 0) return sendJson(res, 400, { error: 'Сумманы туура киргизиңиз (Укажите корректную сумму).' });
+  if (fromType === toType) return sendJson(res, 400, { error: 'Бир эле эсепке которо албайсыз (Нельзя перевести на тот же счёт).' });
+
+  const account = findAccountByUserId(user.id);
+  let fromLabel, toLabel, fromCard = null, toCard = null;
+
+  if (fromType === 'card') {
+    fromCard = requireOwnCard(user, body.fromId);
+    if (!fromCard) return sendJson(res, 404, { error: 'Карта табылган жок (Карта не найдена).' });
+    if (fromCard.status === 'frozen') return sendJson(res, 400, { error: 'Карта бөгөттөлгөн (Карта заморожена).' });
+    if (fromCard.balance < amount) return sendJson(res, 400, { error: 'Картада каражат жетишсиз (Недостаточно средств на карте).' });
+    fromLabel = fromCard.nickname;
+  } else {
+    if (!account.isOwner && account.balance < amount) return sendJson(res, 400, { error: 'Капчыкта каражат жетишсиз (Недостаточно средств на кошельке).' });
+    fromLabel = 'Электрондук капчык';
+  }
+
+  if (toType === 'card') {
+    toCard = requireOwnCard(user, body.toId);
+    if (!toCard) return sendJson(res, 404, { error: 'Карта табылган жок (Карта не найдена).' });
+    if (toCard.status === 'frozen') return sendJson(res, 400, { error: 'Карта бөгөттөлгөн (Карта заморожена).' });
+    toLabel = toCard.nickname;
+  } else {
+    toLabel = 'Электрондук капчык';
+  }
+
+  if (fromCard) fromCard.balance = money(fromCard.balance - amount); else if (!account.isOwner) account.balance = money(account.balance - amount);
+  if (toCard) toCard.balance = money(toCard.balance + amount); else account.balance = money(account.balance + amount);
+
+  const tx = {
+    id: newId(), kind: 'internal', userId: user.id,
+    fromAccountId: fromType === 'wallet' ? account.id : null,
+    toAccountId: toType === 'wallet' ? account.id : null,
+    fromCardId: fromCard ? fromCard.id : null,
+    toCardId: toCard ? toCard.id : null,
+    fromName: fromLabel, toName: toLabel,
+    amount, currency: 'KGS', method: 'internal', note: body.note || '',
+    category: 'other', status: 'success', receiptNo: genReceiptNo(), createdAt: new Date().toISOString()
+  };
+  db().transactions.push(tx);
+  storeDb.save();
+  sendJson(res, 200, {
+    ok: true, transaction: tx,
+    walletBalance: money(account.balance),
+    cards: findCardsByUserId(user.id).map(publicCard)
+  });
+});
+
+// =======================================================================
+//  КОНТАКТЫ
+// =======================================================================
+
+// --- Какие из телефонных номеров контактов являются клиентами ESA Bank ---
+route('POST', '/api/clients/match-phones', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const body = await readJsonBody(req);
+  const phones = Array.isArray(body.phones) ? body.phones.slice(0, 1000) : [];
+  const matches = [];
+  phones.forEach(raw => {
+    const phone = normalizePhone(raw);
+    if (!phone || phone.length !== 12) return;
+    const target = findUserByPhone(phone);
+    if (!target || target.id === user.id) return;
+    matches.push({ phone, phoneFormatted: formatPhone(target.phone), fullName: target.fullName, clientId: target.clientId });
+  });
+  sendJson(res, 200, { matches });
+});
+
+// =======================================================================
+//  КОПИЛКИ
+// =======================================================================
+
+route('GET', '/api/piggy', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  runPiggyAutoDeposits(user.id);
+  sendJson(res, 200, { piggyBanks: findPiggyByUserId(user.id).map(publicPiggy) });
+});
+
+route('POST', '/api/piggy', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const body = await readJsonBody(req);
+  const name = (body.name || '').trim().slice(0, 40);
+  if (!name) return sendJson(res, 400, { error: 'Копилкага ат бериңиз (Дайте копилке название).' });
+  const mode = PIGGY_MODES.includes(body.mode) ? body.mode : 'manual';
+  const targetAmount = body.targetAmount ? Math.max(0, money(body.targetAmount)) : 0;
+  const autoAmount = mode !== 'manual' ? Math.max(0, money(body.autoAmount || 0)) : 0;
+  const p = {
+    id: newId(), userId: user.id, name, icon: (body.icon || 'piggy').slice(0, 20),
+    targetAmount, balance: 0, mode, autoAmount,
+    lastAutoAt: new Date().toISOString(), createdAt: new Date().toISOString()
+  };
+  db().piggyBanks.push(p);
+  storeDb.save();
+  sendJson(res, 201, { piggyBank: publicPiggy(p) });
+});
+
+route('POST', '/api/piggy/:id/deposit', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const p = db().piggyBanks.find(x => x.id === params.id && x.userId === user.id);
+  if (!p) return sendJson(res, 404, { error: 'Копилка табылган жок (Копилка не найдена).' });
+  const body = await readJsonBody(req);
+  const amount = money(body.amount);
+  if (!amount || amount <= 0) return sendJson(res, 400, { error: 'Сумманы туура киргизиңиз (Укажите корректную сумму).' });
+  const account = findAccountByUserId(user.id);
+  if (!account.isOwner && account.balance < amount) return sendJson(res, 400, { error: 'Капчыкта каражат жетишсиз (Недостаточно средств).' });
+  if (!account.isOwner) account.balance = money(account.balance - amount);
+  p.balance = money(p.balance + amount);
+  db().transactions.push({
+    id: newId(), kind: 'piggy_deposit', userId: user.id, piggyId: p.id,
+    fromAccountId: account.id, toAccountId: null,
+    fromName: user.fullName, toName: `Копилка «${p.name}»`,
+    amount, currency: 'KGS', method: 'piggy', note: '', category: 'other',
+    status: 'success', receiptNo: genReceiptNo(), createdAt: new Date().toISOString()
+  });
+  storeDb.save();
+  sendJson(res, 200, { piggyBank: publicPiggy(p), walletBalance: money(account.balance) });
+});
+
+route('POST', '/api/piggy/:id/withdraw', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const p = db().piggyBanks.find(x => x.id === params.id && x.userId === user.id);
+  if (!p) return sendJson(res, 404, { error: 'Копилка табылган жок (Копилка не найдена).' });
+  const body = await readJsonBody(req);
+  const amount = money(body.amount);
+  if (!amount || amount <= 0 || amount > p.balance) return sendJson(res, 400, { error: 'Сумманы туура киргизиңиз (Укажите корректную сумму).' });
+  const account = findAccountByUserId(user.id);
+  p.balance = money(p.balance - amount);
+  if (!account.isOwner) account.balance = money(account.balance + amount);
+  db().transactions.push({
+    id: newId(), kind: 'piggy_withdraw', userId: user.id, piggyId: p.id,
+    fromAccountId: null, toAccountId: account.id,
+    fromName: `Копилка «${p.name}»`, toName: user.fullName,
+    amount, currency: 'KGS', method: 'piggy', note: '', category: 'other',
+    status: 'success', receiptNo: genReceiptNo(), createdAt: new Date().toISOString()
+  });
+  storeDb.save();
+  sendJson(res, 200, { piggyBank: publicPiggy(p), walletBalance: money(account.balance) });
+});
+
+route('DELETE', '/api/piggy/:id', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const d = db();
+  const p = d.piggyBanks.find(x => x.id === params.id && x.userId === user.id);
+  if (!p) return sendJson(res, 404, { error: 'Копилка табылган жок (Копилка не найдена).' });
+  const account = findAccountByUserId(user.id);
+  if (p.balance > 0 && !account.isOwner) account.balance = money(account.balance + p.balance);
+  d.piggyBanks = d.piggyBanks.filter(x => x.id !== p.id);
+  storeDb.save();
+  sendJson(res, 200, { ok: true, walletBalance: money(account.balance) });
+});
+
+// =======================================================================
+//  ПУБЛИЧНАЯ КАРТА БАНКОМАТОВ / ТЕРМИНАЛОВ / ОФИСОВ (для приложения и сайта банка)
+// =======================================================================
+
+route('GET', '/api/locations', async (req, res) => {
+  const d = db();
+  sendJson(res, 200, {
+    offices: d.offices.map(o => ({ id: o.id, name: o.name, address: o.address, lat: o.lat, lng: o.lng, phone: o.phone, hours: o.hours })),
+    devices: d.devices.filter(dv => dv.status === 'active').map(dv => publicDevice(dv))
+  });
+});
+
+// =======================================================================
+//  СОТРУДНИКИ / ОФИС БАНКА
+// =======================================================================
+
+route('POST', '/api/staff/auth/login', async (req, res) => {
+  const body = await readJsonBody(req);
+  const phone = normalizePhone(body.phone);
+  const password = body.password || '';
+  const staff = findStaffByPhone(phone);
+  if (!staff || !verifyPassword(password, staff.passwordSalt, staff.passwordHash)) {
+    return sendJson(res, 401, { error: 'Телефон же сырсөз туура эмес (Неверный телефон или пароль).' });
+  }
+  const token = createStaffSession(staff.id);
+  sendJson(res, 200, { token, staff: publicStaff(staff) });
+});
+
+route('POST', '/api/staff/auth/logout', async (req, res) => {
+  const header = req.headers['authorization'] || '';
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (match) {
+    const d = db();
+    d.staffSessions = d.staffSessions.filter(s => s.token !== match[1]);
+    storeDb.save();
+  }
+  sendJson(res, 200, { ok: true });
+});
+
+route('GET', '/api/staff/me', async (req, res) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  sendJson(res, 200, { staff: publicStaff(staff) });
+});
+
+// --- Обзорная статистика для панели офиса ---
+route('GET', '/api/office/overview', async (req, res) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const d = db();
+  const totalClients = d.users.filter(u => { const a = findAccountByUserId(u.id); return a && !a.isOwner; }).length;
+  const totalWalletBalance = d.accounts.filter(a => !a.isOwner).reduce((s, a) => s + a.balance, 0);
+  const totalCards = d.cards.filter(c => c.status !== 'closed').length;
+  const totalDevices = d.devices.length;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayTx = d.transactions.filter(t => (t.createdAt || '').slice(0, 10) === todayStr);
+  sendJson(res, 200, {
+    totalClients, totalWalletBalance: money(totalWalletBalance), totalCards, totalDevices,
+    todayTxCount: todayTx.length,
+    todayTxVolume: money(todayTx.reduce((s, t) => s + t.amount, 0))
+  });
+});
+
+// --- Поиск клиента (по имени / телефону / паспорту) ---
+route('GET', '/api/office/clients/search', async (req, res) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const q = (new URL(req.url, 'http://x').searchParams.get('q') || '').trim().toLowerCase();
+  if (!q) return sendJson(res, 200, { clients: [] });
+  const d = db();
+  const qDigits = q.replace(/\D/g, '');
+  const results = d.users.filter(u => {
+    const kyc = u.kyc || {};
+    return u.fullName.toLowerCase().includes(q)
+      || (qDigits.length > 0 && u.phone.includes(qDigits))
+      || (kyc.passportNumber || '').toLowerCase().includes(q);
+  }).slice(0, 25).map(u => {
+    const account = findAccountByUserId(u.id);
+    return {
+      id: u.id, clientId: u.clientId, fullName: u.fullName, phoneFormatted: formatPhone(u.phone),
+      hasKyc: !!u.kyc, walletBalance: account ? money(account.balance) : 0,
+      cardCount: findCardsByUserId(u.id).length
+    };
+  });
+  sendJson(res, 200, { clients: results });
+});
+
+// --- Карточка клиента (детально) ---
+route('GET', '/api/office/clients/:id', async (req, res, params) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const user = findUserById(params.id);
+  if (!user) return sendJson(res, 404, { error: 'Клиент табылган жок (Клиент не найден).' });
+  const account = findAccountByUserId(user.id);
+  sendJson(res, 200, {
+    client: {
+      id: user.id, clientId: user.clientId, fullName: user.fullName, phoneFormatted: formatPhone(user.phone),
+      createdAt: user.createdAt, kyc: user.kyc || null,
+      wallet: account ? { accountNumber: account.accountNumber, balance: money(account.balance) } : null,
+      cards: findCardsByUserId(user.id).map(publicCard)
+    }
+  });
+});
+
+// --- Регистрация нового клиента по паспорту (офис) ---
+route('POST', '/api/office/clients/register-passport', async (req, res) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const body = await readJsonBody(req);
+  const fullName = (body.fullName || '').trim();
+  const phone = normalizePhone(body.phone);
+  const password = body.password || '';
+  const passportNumber = (body.passportNumber || '').trim();
+
+  if (fullName.length < 2) return sendJson(res, 400, { error: 'Толук атын туура киргизиңиз (Укажите корректное имя).' });
+  if (phone.length !== 12) return sendJson(res, 400, { error: 'Телефон номерин туура киргизиңиз (Укажите корректный номер телефона).' });
+  if (password.length < 6) return sendJson(res, 400, { error: 'Купуя сөз кеминде 6 белгиден турушу керек (Пароль должен быть не короче 6 символов).' });
+  if (!passportNumber) return sendJson(res, 400, { error: 'Паспорттун номерин киргизиңиз (Укажите номер паспорта).' });
+  if (findUserByPhone(phone)) return sendJson(res, 409, { error: 'Бул номер менен колдонуучу буга чейин катталган (Этот номер уже зарегистрирован).' });
+
+  const { user, account } = createUserWithAccount({ fullName, phone, password });
+  user.kyc = {
+    passportNumber, passportIssuedBy: (body.passportIssuedBy || '').trim(),
+    passportIssuedAt: body.passportIssuedAt || null, birthDate: body.birthDate || null,
+    address: (body.address || '').trim(), facePhoto: body.facePhoto || null,
+    verifiedByStaffId: staff.id, verifiedAt: new Date().toISOString()
+  };
+  storeDb.save();
+  sendJson(res, 201, { client: { id: user.id, clientId: user.clientId, fullName: user.fullName, accountNumber: account.accountNumber } });
+});
+
+// --- Найти существующего клиента по паспортным данным (чтобы открыть ему карту) ---
+route('POST', '/api/office/clients/find-by-passport', async (req, res) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const body = await readJsonBody(req);
+  const passportNumber = (body.passportNumber || '').trim();
+  if (!passportNumber) return sendJson(res, 400, { error: 'Паспорттун номерин киргизиңиз (Укажите номер паспорта).' });
+  const user = db().users.find(u => u.kyc && u.kyc.passportNumber === passportNumber);
+  if (!user) return sendJson(res, 404, { error: 'Мындай паспорт боюнча кардар табылган жок (Клиент с таким паспортом не найден).' });
+  sendJson(res, 200, { client: { id: user.id, clientId: user.clientId, fullName: user.fullName, phoneFormatted: formatPhone(user.phone) } });
+});
+
+// --- Выпуск карты клиенту сотрудником офиса ---
+route('POST', '/api/office/clients/:id/cards', async (req, res, params) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const user = findUserById(params.id);
+  if (!user) return sendJson(res, 404, { error: 'Клиент табылган жок (Клиент не найден).' });
+  const body = await readJsonBody(req);
+  const type = CARD_PLANS[body.type] ? body.type : null;
+  if (!type) return sendJson(res, 400, { error: 'Картанын түрүн тандаңыз (Выберите тип карты).' });
+  const card = issueCard(user.id, { type, themeId: body.themeId, nickname: body.nickname });
+  sendJson(res, 201, { card: publicCard(card) });
+});
+
+// --- Офисы (адреса) ---
+route('GET', '/api/office/offices', async (req, res) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  sendJson(res, 200, { offices: db().offices });
+});
+
+route('POST', '/api/office/offices', async (req, res) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const body = await readJsonBody(req);
+  const name = (body.name || '').trim();
+  if (!name) return sendJson(res, 400, { error: 'Офистин атын киргизиңиз (Укажите название офиса).' });
+  const office = {
+    id: newId(), name, address: (body.address || '').trim(),
+    lat: Number(body.lat) || null, lng: Number(body.lng) || null,
+    phone: (body.phone || '').trim(), hours: (body.hours || '09:00–18:00').trim(),
+    createdAt: new Date().toISOString()
+  };
+  db().offices.push(office);
+  storeDb.save();
+  sendJson(res, 201, { office });
+});
+
+// --- Устройства: список / создание ---
+route('GET', '/api/office/devices', async (req, res) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  sendJson(res, 200, {
+    devices: db().devices.map(dv => ({ ...publicDevice(dv, { withCash: true }), cashTotal: deviceCashTotal(dv) }))
+  });
+});
+
+route('POST', '/api/office/devices', async (req, res) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const body = await readJsonBody(req);
+  const kind = ['atm', 'terminal', 'both'].includes(body.kind) ? body.kind : 'both';
+  const password = body.password || '';
+  if (password.length < 4) return sendJson(res, 400, { error: 'Сырсөз кеминде 4 белгиден турушу керек (Пароль должен быть не короче 4 символов).' });
+  const { hash, salt } = hashPassword(password);
+  const cash = {};
+  DEVICE_DENOMS.forEach(d => { cash[d] = Number((body.cash && body.cash[d]) || 0); });
+  const device = {
+    id: newId(), deviceCode: genDeviceCode(kind), kind,
+    label: (body.label || '').trim() || `Түзмөк ${db().meta.nextDeviceSeq}`,
+    passwordHash: hash, passwordSalt: salt,
+    officeId: body.officeId || null,
+    location: { address: (body.location && body.location.address) || '', lat: Number(body.location && body.location.lat) || null, lng: Number(body.location && body.location.lng) || null },
+    cash, scannedSerials: [], pairToken: newToken(),
+    status: 'active', createdAt: new Date().toISOString()
+  };
+  db().meta.nextDeviceSeq++;
+  db().devices.push(device);
+  storeDb.save();
+  sendJson(res, 201, { device: { ...publicDevice(device, { withCash: true }) } });
+});
+
+route('GET', '/api/office/devices/:id', async (req, res, params) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const device = findDeviceById(params.id);
+  if (!device) return sendJson(res, 404, { error: 'Түзмөк табылган жок (Устройство не найдено).' });
+  const receipts = db().deviceReceipts.filter(r => r.deviceId === device.id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  sendJson(res, 200, { device: { ...publicDevice(device, { withCash: true }), cashTotal: deviceCashTotal(device) }, receipts });
+});
+
+// --- Пополнить устройство наличностью (инкассация) ---
+route('POST', '/api/office/devices/:id/cash', async (req, res, params) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const device = findDeviceById(params.id);
+  if (!device) return sendJson(res, 404, { error: 'Түзмөк табылган жок (Устройство не найдено).' });
+  const body = await readJsonBody(req);
+  DEVICE_DENOMS.forEach(d => {
+    const add = Number((body.cash && body.cash[d]) || 0);
+    if (add > 0) device.cash[d] = (device.cash[d] || 0) + add;
+  });
+  storeDb.save();
+  sendJson(res, 200, { device: { ...publicDevice(device, { withCash: true }), cashTotal: deviceCashTotal(device) } });
+});
+
+route('POST', '/api/office/devices/:id/status', async (req, res, params) => {
+  const staff = getStaffAuthUser(req);
+  if (!staff) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const device = findDeviceById(params.id);
+  if (!device) return sendJson(res, 404, { error: 'Түзмөк табылган жок (Устройство не найдено).' });
+  const body = await readJsonBody(req);
+  device.status = body.status === 'disabled' ? 'disabled' : 'active';
+  storeDb.save();
+  sendJson(res, 200, { device: publicDevice(device, { withCash: true }) });
+});
+
+// =======================================================================
+//  БАНКОМАТ + ТЕРМИНАЛ (КИОСК) — публичная часть для сайта киоска
+// =======================================================================
+
+function getDeviceAuthFromReq(req) {
+  const header = req.headers['authorization'] || '';
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+  const d = db();
+  const s = d.deviceAuthSessions.find(s => s.token === match[1]);
+  if (!s || s.expiresAt < Date.now()) return null;
+  return findDeviceById(s.deviceId);
+}
+
+// --- Вход на киоске (деж. сотрудник активирует устройство один раз) ---
+route('POST', '/api/device/auth/login', async (req, res) => {
+  const body = await readJsonBody(req);
+  const device = findDeviceByCode((body.deviceCode || '').trim().toUpperCase());
+  if (!device || device.status !== 'active') return sendJson(res, 404, { error: 'Түзмөк табылган жок же өчүрүлгөн (Устройство не найдено или отключено).' });
+  if (!verifyPassword(body.password || '', device.passwordSalt, device.passwordHash)) {
+    return sendJson(res, 401, { error: 'Сырсөз туура эмес (Неверный пароль).' });
+  }
+  const token = newToken();
+  db().deviceAuthSessions.push({ token, deviceId: device.id, createdAt: new Date().toISOString(), expiresAt: Date.now() + 12 * 60 * 60 * 1000 });
+  storeDb.save();
+  sendJson(res, 200, { token, device: publicDevice(device), qrPayload: makeDevicePairPayload(device) });
+});
+
+// --- QR-код киоска для сканирования из приложения ---
+route('GET', '/api/device/qr', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  // Токен привязки обновляем при каждом запросе нового QR, чтобы старые
+  // скриншоты QR-кода нельзя было использовать повторно.
+  device.pairToken = newToken();
+  storeDb.save();
+  sendJson(res, 200, { payload: makeDevicePairPayload(device) });
+});
+
+// --- Клиент сканирует QR киоска своим телефоном (из приложения, с авторизацией клиента) ---
+route('POST', '/api/device/pair', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const body = await readJsonBody(req);
+  const parsed = parseDevicePairPayload(body.payload);
+  if (!parsed) return sendJson(res, 400, { error: 'QR-код жараксыз (Недействительный QR-код терминала).' });
+  const device = findDeviceByCode(parsed.deviceCode);
+  if (!device || device.pairToken !== parsed.pairToken) return sendJson(res, 400, { error: 'QR-код эскирген, кайра аракет кылыңыз (QR-код устарел, попробуйте снова).' });
+
+  const d = db();
+  d.deviceSessions = d.deviceSessions.filter(s => s.deviceId !== device.id || !s.active); // чистим прошлые активные привязки этого устройства
+  const session = { id: newId(), deviceId: device.id, userId: user.id, active: true, pairedAt: new Date().toISOString(), expiresAt: Date.now() + DEVICE_PAIR_TTL_MS };
+  d.deviceSessions.push(session);
+  storeDb.save();
+  sendJson(res, 200, { ok: true, deviceLabel: device.label, deviceCode: device.deviceCode });
+});
+
+// --- Киоск узнаёт, привязан ли уже клиент, и подтягивает его данные ---
+route('GET', '/api/device/session', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  const d = db();
+  const session = d.deviceSessions.find(s => s.deviceId === device.id && s.active && s.expiresAt > Date.now());
+  if (!session) return sendJson(res, 200, { paired: false });
+  const user = findUserById(session.userId);
+  const account = findAccountByUserId(session.userId);
+  chargeDueCardFees(session.userId);
+  sendJson(res, 200, {
+    paired: true,
+    user: { fullName: user.fullName, clientId: user.clientId },
+    wallet: { balance: money(account.balance), isOwner: !!account.isOwner },
+    cards: findCardsByUserId(session.userId).filter(c => c.status === 'active').map(publicCard)
+  });
+});
+
+// --- Клиент отходит от киоска / завершает сессию ---
+route('POST', '/api/device/session/end', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  const d = db();
+  d.deviceSessions.forEach(s => { if (s.deviceId === device.id) s.active = false; });
+  storeDb.save();
+  sendJson(res, 200, { ok: true });
+});
+
+function activeDeviceSession(device) {
+  const d = db();
+  return d.deviceSessions.find(s => s.deviceId === device.id && s.active && s.expiresAt > Date.now());
+}
+
+// --- Снятие наличных через банкомат ---
+route('POST', '/api/device/withdraw', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  const session = activeDeviceSession(device);
+  if (!session) return sendJson(res, 400, { error: 'Кардар байланышкан эмес (Клиент не привязан к устройству).' });
+  const body = await readJsonBody(req);
+  const amount = money(body.amount);
+  if (!amount || amount <= 0) return sendJson(res, 400, { error: 'Сумманы туура киргизиңиз (Укажите корректную сумму).' });
+
+  const user = findUserById(session.userId);
+  const account = findAccountByUserId(session.userId);
+  if (!account.isOwner && account.balance < amount) {
+    return sendJson(res, 400, { error: 'Эсепте каражат жетишсиз (На счету недостаточно средств).' });
+  }
+  const breakdown = breakdownCash(device.cash, amount);
+  if (!breakdown) {
+    return sendJson(res, 400, { error: 'Банкоматта бул сумманы берүү үчүн купюралар жок (У банкомата нет нужных купюр для этой суммы).' });
+  }
+
+  if (!account.isOwner) account.balance = money(account.balance - amount);
+  Object.entries(breakdown).forEach(([denom, count]) => { device.cash[denom] -= count; });
+
+  const receiptNo = genReceiptNo();
+  const tx = {
+    id: newId(), kind: 'device_withdraw', userId: user.id,
+    fromAccountId: account.id, toAccountId: null,
+    fromName: user.fullName, toName: `Банкомат ${device.deviceCode}`,
+    amount, currency: 'KGS', method: 'atm', note: `Накталай акча алуу — ${device.label}`,
+    category: 'other', status: 'success', receiptNo, createdAt: new Date().toISOString(),
+    deviceId: device.id, deviceCode: device.deviceCode
+  };
+  db().transactions.push(tx);
+  const receipt = {
+    id: newId(), deviceId: device.id, deviceCode: device.deviceCode, type: 'withdraw',
+    amount, denominations: breakdown, userId: user.id, clientName: user.fullName,
+    receiptNo, createdAt: new Date().toISOString()
+  };
+  db().deviceReceipts.push(receipt);
+  storeDb.save();
+
+  sendJson(res, 200, { ok: true, receipt, breakdown, newBalance: money(account.balance) });
+});
+
+// --- Пополнение через терминал: старт сессии сканирования купюр (60 сек) ---
+route('POST', '/api/device/deposit/start', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  const session = activeDeviceSession(device);
+  if (!session) return sendJson(res, 400, { error: 'Кардар байланышкан эмес (Клиент не привязан к устройству).' });
+  const d = db();
+  d.depositSessions = d.depositSessions.filter(s => !(s.deviceId === device.id && s.status === 'active'));
+  const ds = {
+    id: newId(), deviceId: device.id, userId: session.userId,
+    notes: [], total: 0, status: 'active',
+    startedAt: new Date().toISOString(), expiresAt: Date.now() + DEPOSIT_SESSION_TTL_MS
+  };
+  d.depositSessions.push(ds);
+  storeDb.save();
+  sendJson(res, 200, { sessionId: ds.id, expiresAt: ds.expiresAt, minAmount: DEPOSIT_MIN_AMOUNT, commission: 0 });
+});
+
+// --- Пополнение через терминал: "сканирование" одной купюры камерой ---
+// В демо-версии реальное компьютерное зрение не подключено: номинал
+// передаёт сама камера-симуляция на фронтенде (выбор купюры по снимку),
+// а сервер честно проверяет серийный номер на повтор и ведёт учёт.
+route('POST', '/api/device/deposit/scan', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  const body = await readJsonBody(req);
+  const d = db();
+  const ds = d.depositSessions.find(s => s.id === body.sessionId && s.deviceId === device.id && s.status === 'active');
+  if (!ds) return sendJson(res, 400, { error: 'Сессиянын мөөнөтү өттү (Сессия сканирования истекла).' });
+  if (ds.expiresAt < Date.now()) { ds.status = 'expired'; storeDb.save(); return sendJson(res, 400, { error: 'Убакыт бүттү, баштан баштаңыз (Время вышло, начните заново).' }); }
+
+  const denom = Number(body.denomination);
+  if (!DEVICE_DENOMS.includes(denom)) return sendJson(res, 400, { error: 'Купюра таанылган жок, кайра аракет кылыңыз (Купюра не распознана, повторите попытку).' });
+  const serial = (body.serial || '').trim();
+  if (!serial || serial.length < 6) return sendJson(res, 400, { error: 'Сүрөттүн сапаты начар, кайра аракет кылыңыз (Качество снимка низкое, повторите попытку).' });
+
+  if (device.scannedSerials.some(s => s.serial === serial)) {
+    return sendJson(res, 400, { error: 'Бул купюра мурда эле скандалган (Эта купюра уже была отсканирована). Повторите попытку с другой купюрой.' });
+  }
+  if (ds.notes.some(n => n.serial === serial)) {
+    return sendJson(res, 400, { error: 'Бул купюра учурдагы сессияда мурда скандалган (Эта купюра уже отсканирована в этой сессии).' });
+  }
+
+  ds.notes.push({ serial, denom, scannedAt: new Date().toISOString() });
+  ds.total = money(ds.total + denom);
+  device.scannedSerials.push({ serial, denom, scannedAt: new Date().toISOString() });
+  // Повторное сканирование продлевает таймер — как в реальном терминале, пока купюры принимаются
+  ds.expiresAt = Date.now() + DEPOSIT_SESSION_TTL_MS;
+  storeDb.save();
+  sendJson(res, 200, { sessionId: ds.id, total: ds.total, notesCount: ds.notes.length, expiresAt: ds.expiresAt, lastDenom: denom });
+});
+
+route('GET', '/api/device/deposit/status', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  const sessionId = new URL(req.url, 'http://x').searchParams.get('sessionId');
+  const ds = db().depositSessions.find(s => s.id === sessionId && s.deviceId === device.id);
+  if (!ds) return sendJson(res, 404, { error: 'Сессия табылган жок (Сессия не найдена).' });
+  const expired = ds.status === 'active' && ds.expiresAt < Date.now();
+  if (expired) { ds.status = 'expired'; storeDb.save(); }
+  sendJson(res, 200, { sessionId: ds.id, total: ds.total, notesCount: ds.notes.length, status: expired ? 'expired' : ds.status, expiresAt: ds.expiresAt, minAmount: DEPOSIT_MIN_AMOUNT });
+});
+
+route('POST', '/api/device/deposit/cancel', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  const body = await readJsonBody(req);
+  const d = db();
+  const ds = d.depositSessions.find(s => s.id === body.sessionId && s.deviceId === device.id);
+  if (ds && ds.status === 'active') { ds.status = 'cancelled'; storeDb.save(); }
+  sendJson(res, 200, { ok: true });
+});
+
+route('POST', '/api/device/deposit/confirm', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  const body = await readJsonBody(req);
+  const d = db();
+  const ds = d.depositSessions.find(s => s.id === body.sessionId && s.deviceId === device.id && s.status === 'active');
+  if (!ds) return sendJson(res, 400, { error: 'Сессия табылган жок же аяктаган (Сессия не найдена или завершена).' });
+  if (ds.expiresAt < Date.now()) { ds.status = 'expired'; storeDb.save(); return sendJson(res, 400, { error: 'Убакыт бүттү, баштан баштаңыз (Время вышло, начните заново).' }); }
+  if (ds.total < DEPOSIT_MIN_AMOUNT) {
+    return sendJson(res, 400, { error: `Минималдуу сумма — ${DEPOSIT_MIN_AMOUNT} сом (Минимальная сумма пополнения — ${DEPOSIT_MIN_AMOUNT} сом).` });
+  }
+
+  const user = findUserById(ds.userId);
+  const account = findAccountByUserId(ds.userId);
+  if (!account.isOwner) account.balance = money(account.balance + ds.total);
+  ds.notes.forEach(n => { device.cash[n.denom] = (device.cash[n.denom] || 0) + 1; });
+  ds.status = 'confirmed';
+
+  const receiptNo = genReceiptNo();
+  const denominations = {};
+  ds.notes.forEach(n => { denominations[n.denom] = (denominations[n.denom] || 0) + 1; });
+  const tx = {
+    id: newId(), kind: 'device_deposit', userId: user.id,
+    fromAccountId: null, toAccountId: account.id,
+    fromName: `Терминал ${device.deviceCode}`, toName: user.fullName,
+    amount: ds.total, currency: 'KGS', method: 'terminal', note: `Накталай акча менен толуктоо — ${device.label}`,
+    category: 'other', status: 'success', receiptNo, createdAt: new Date().toISOString(),
+    deviceId: device.id, deviceCode: device.deviceCode
+  };
+  db().transactions.push(tx);
+  const receipt = {
+    id: newId(), deviceId: device.id, deviceCode: device.deviceCode, type: 'deposit',
+    amount: ds.total, denominations, userId: user.id, clientName: user.fullName,
+    receiptNo, createdAt: new Date().toISOString()
+  };
+  db().deviceReceipts.push(receipt);
+  storeDb.save();
+  sendJson(res, 200, { ok: true, receipt, newBalance: money(account.balance) });
+});
+
 // --- Курсы валют (реальные, обновляются раз в час) ---
 route('GET', '/api/rates', async (req, res) => {
   try {
@@ -603,24 +1619,47 @@ route('GET', '/api/transactions', async (req, res) => {
   const user = getAuthUser(req);
   if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
   const account = findAccountByUserId(user.id);
+  const cardIds = new Set(findCardsByUserId(user.id).map(c => c.id));
   const list = db().transactions
-    .filter(t => t.fromAccountId === account.id || t.toAccountId === account.id)
+    .filter(t =>
+      t.fromAccountId === account.id || t.toAccountId === account.id ||
+      cardIds.has(t.fromCardId) || cardIds.has(t.toCardId) ||
+      (t.userId === user.id && (t.kind === 'device_withdraw' || t.kind === 'device_deposit' || t.kind === 'piggy_deposit' || t.kind === 'piggy_withdraw' || t.kind === 'card_fee'))
+    )
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .map(t => ({
-      id: t.id,
-      direction: t.fromAccountId === account.id ? 'out' : 'in',
-      counterparty: t.fromAccountId === account.id ? t.toName : t.fromName,
-      counterpartyPhone: t.fromAccountId === account.id ? (t.toPhone || null) : (t.fromPhone || null),
-      amount: t.amount,
-      currency: t.currency,
-      method: t.method,
-      note: t.note,
-      category: t.category || 'other',
-      status: t.status,
-      receiptNo: t.receiptNo,
-      createdAt: t.createdAt
-    }));
+    .map(t => {
+      const isOut = t.fromAccountId === account.id || cardIds.has(t.fromCardId);
+      return {
+        id: t.id,
+        direction: isOut ? 'out' : 'in',
+        counterparty: isOut ? t.toName : t.fromName,
+        counterpartyPhone: isOut ? (t.toPhone || null) : (t.fromPhone || null),
+        kind: t.kind || (t.method === 'phone' || t.method === 'qr' ? 'p2p' : t.method),
+        amount: t.amount,
+        currency: t.currency,
+        method: t.method,
+        note: t.note,
+        category: t.category || 'other',
+        status: t.status,
+        receiptNo: t.receiptNo,
+        deviceCode: t.deviceCode || null,
+        createdAt: t.createdAt
+      };
+    });
   sendJson(res, 200, { transactions: list });
+});
+
+// --- Один чек по номеру (для экрана "чек как бумага") ---
+route('GET', '/api/transactions/:id/receipt', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const account = findAccountByUserId(user.id);
+  const cardIds = new Set(findCardsByUserId(user.id).map(c => c.id));
+  const t = db().transactions.find(x => x.id === params.id);
+  if (!t) return sendJson(res, 404, { error: 'Чек табылган жок (Чек не найден).' });
+  const belongs = t.fromAccountId === account.id || t.toAccountId === account.id || cardIds.has(t.fromCardId) || cardIds.has(t.toCardId) || t.userId === user.id;
+  if (!belongs) return sendJson(res, 403, { error: 'Жеткиликсиз (Доступ запрещён).' });
+  sendJson(res, 200, { receipt: t });
 });
 
 // --- Удаление собственной учётной записи (владелец банка защищён от удаления) ---
@@ -657,7 +1696,7 @@ const server = http.createServer(async (req, res) => {
     const matched = matchRoute(req.method, pathname);
     if (!matched) return sendJson(res, 404, { error: 'Маршрут табылган жок (Маршрут не найден).' });
     try {
-      await matched.handler(req, res);
+      await matched.handler(req, res, matched.params);
     } catch (err) {
       console.error('[api error]', err);
       sendJson(res, 500, { error: 'Сервердин ички катасы (Внутренняя ошибка сервера).' });
@@ -680,12 +1719,6 @@ function seedDemoUsersIfEmpty() {
   });
   markAccountAsOwner(owner.account.id);
   console.log('[seed] Ээси түзүлдү: +996 995 223 667 (чексиз баланс)');
-
-  // Два тестовых клиента с обычным балансом — удобно, чтобы сразу было
-  // с кем проверять переводы, не трогая счёт владельца.
-  createUserWithAccount({ fullName: 'Айбек Асанов', phone: '996700111111', password: '123456' });
-  createUserWithAccount({ fullName: 'Нурбек Токтосунов', phone: '996700222222', password: '123456' });
-  console.log('[seed] Тест-колдонуучулар түзүлдү: +996 700 111 111 жана +996 700 222 222 (сырсөз: 123456)');
 }
 
 function markAccountAsOwner(accountId) {
@@ -695,9 +1728,80 @@ function markAccountAsOwner(accountId) {
   storeDb.save();
 }
 
+// Одноразовая очистка: убираем старых тестовых клиентов (Айбек Асанов,
+// Нурбек Токтосунов), которые раньше создавались автоматически для
+// демонстрации — теперь в системе должен быть только реальный владелец,
+// а новые клиенты регистрируются по-настоящему (через офис или телефон).
+function purgeOldTestUsersOnce() {
+  const d = db();
+  if (d.meta.testUsersPurgedAt) return;
+  const testPhones = new Set(['996700111111', '996700222222']);
+  const removeIds = new Set(d.users.filter(u => testPhones.has(u.phone)).map(u => u.id));
+  if (removeIds.size > 0) {
+    d.users = d.users.filter(u => !removeIds.has(u.id));
+    d.accounts = d.accounts.filter(a => !removeIds.has(a.userId));
+    d.sessions = d.sessions.filter(s => !removeIds.has(s.userId));
+    d.cards = d.cards.filter(c => !removeIds.has(c.userId));
+    console.log(`[migrate] Эски тест-колдонуучулар өчүрүлдү (${removeIds.size}).`);
+  }
+  d.meta.testUsersPurgedAt = new Date().toISOString();
+  storeDb.save();
+}
+
+// Владелец банка автоматически получает доступ к офисному сайту с теми же
+// учётными данными, что и в приложении — отдельный пароль заводить не нужно.
+function ensureOwnerStaffAccount() {
+  const d = db();
+  const ownerAccount = d.accounts.find(a => a.isOwner);
+  if (!ownerAccount) return;
+  const ownerUser = findUserById(ownerAccount.userId);
+  if (!ownerUser) return;
+  if (findStaffByPhone(ownerUser.phone)) return;
+  d.staff.push({
+    id: newId(), fullName: ownerUser.fullName, role: 'owner', phone: ownerUser.phone,
+    passwordHash: ownerUser.passwordHash, passwordSalt: ownerUser.passwordSalt,
+    createdAt: new Date().toISOString()
+  });
+  storeDb.save();
+  console.log('[seed] Офис сайтына кирүү: +996 995 223 667 (ошол эле сырсөз).');
+}
+
+// Демо-офис и первое устройство банкомат+терминал — чтобы сайты офиса и
+// киоска сразу было с чем проверять, без ручной настройки с нуля.
+function ensureDemoDevices() {
+  const d = db();
+  if (d.offices.length > 0 || d.devices.length > 0) return;
+  const office = {
+    id: newId(), name: 'ESA Bank — Башкы офис', address: 'Бишкек ш., Чүй проспекти, 123',
+    lat: 42.8746, lng: 74.5698, phone: '+996 995 223 667', hours: '09:00–18:00',
+    createdAt: new Date().toISOString()
+  };
+  d.offices.push(office);
+
+  const { hash, salt } = hashPassword('0000');
+  const cash = {};
+  DEVICE_DENOMS.forEach(denom => { cash[denom] = denom >= 1000 ? 40 : 100; });
+  const device = {
+    id: newId(), deviceCode: genDeviceCode('both'), kind: 'both',
+    label: 'Банкомат + Терминал №1 (Башкы офис)',
+    passwordHash: hash, passwordSalt: salt,
+    officeId: office.id,
+    location: { address: office.address, lat: office.lat, lng: office.lng },
+    cash, scannedSerials: [], pairToken: newToken(),
+    status: 'active', createdAt: new Date().toISOString()
+  };
+  d.meta.nextDeviceSeq++;
+  d.devices.push(device);
+  storeDb.save();
+  console.log(`[seed] Демо түзмөк түзүлдү: ${device.deviceCode} (сырсөз: 0000)`);
+}
+
 async function start() {
   await storeDb.load();
   seedDemoUsersIfEmpty();
+  purgeOldTestUsersOnce();
+  ensureOwnerStaffAccount();
+  ensureDemoDevices();
 
   server.listen(PORT, () => {
     console.log(`ESA Bank сервери иштеп жатат: http://localhost:${PORT}`);

@@ -34,13 +34,35 @@ const SUPABASE_ROW_KEY = 'esa_bank_main';
 
 function emptyDb() {
   return {
-    meta: { nextClientId: 10000001, createdAt: new Date().toISOString() },
-    users: [],        // {id, clientId, fullName, phone, passwordHash, passwordSalt, createdAt}
-    accounts: [],      // {id, userId, accountNumber, balance, currency, isOwner, createdAt}
-    transactions: [],  // {id, fromAccountId, toAccountId, fromName, toName, amount, currency, method, note, status, createdAt, receiptNo}
+    meta: { nextClientId: 10000001, nextDeviceSeq: 1, createdAt: new Date().toISOString() },
+    users: [],        // {id, clientId, fullName, phone, passwordHash, passwordSalt, createdAt, kyc?:{...}}
+    accounts: [],      // электронный кошелёк: {id, userId, accountNumber, balance, currency, isOwner, createdAt}
+    cards: [],         // {id, userId, type:'visa'|'elkart', number, holderName, expiry, cvv, themeId, nickname, balance, annualFee, feeDueAt, status, createdAt}
+    transactions: [],  // {id, fromRef, toRef, fromName, toName, amount, currency, method, note, status, createdAt, receiptNo}
     sessions: [],      // {token, userId, createdAt, expiresAt}
-    resetCodes: []     // {phone, code, expiresAt, used}
+    resetCodes: [],    // {phone, code, expiresAt, used}
+    piggyBanks: [],    // {id, userId, name, icon, targetAmount, balance, mode, autoAmount, lastAutoAt, createdAt}
+    staff: [],         // {id, fullName, role, phone, passwordHash, passwordSalt, createdAt}
+    staffSessions: [], // {token, staffId, createdAt, expiresAt}
+    offices: [],       // {id, name, address, lat, lng, phone, hours, createdAt}
+    devices: [],        // {id, deviceCode, kind, label, passwordHash, passwordSalt, officeId, location:{address,lat,lng}, cash:{denomination:count}, scannedSerials:[], pairToken, status, createdAt}
+    deviceAuthSessions: [], // {token, deviceId, createdAt, expiresAt} — сессия киоска (банкомат/терминал)
+    deviceSessions: [], // {id, deviceId, userId, pairedAt, active, expiresAt} — привязка телефона клиента к конкретному киоску
+    depositSessions: [], // {id, deviceId, userId, notes:[{serial,denom,scannedAt}], total, startedAt, expiresAt, status}
+    deviceReceipts: [], // {id, deviceId, deviceCode, type, amount, denominations, userId, receiptNo, createdAt}
+    applications: []    // {id, type:'passport_kyc', passport fields + facePhoto, createdByStaffId, userId, createdAt}
   };
+}
+
+// На случай обновления схемы в уже существующей базе — добиваем
+// отсутствующие коллекции пустыми массивами, чтобы старые базы не падали.
+function migrate(d) {
+  const blank = emptyDb();
+  for (const key of Object.keys(blank)) {
+    if (!(key in d)) d[key] = blank[key];
+  }
+  if (!('nextDeviceSeq' in d.meta)) d.meta.nextDeviceSeq = 1;
+  return d;
 }
 
 let db = null;
@@ -133,7 +155,7 @@ async function load() {
     try {
       const remote = await loadFromSupabase();
       if (remote) {
-        db = remote;
+        db = migrate(remote);
         console.log('[db] Онлайн база (Supabase) ийгиликтүү жүктөлдү.');
         persistLocalFile(); // держим локальный кэш актуальным
         return db;
@@ -144,7 +166,7 @@ async function load() {
     }
   }
 
-  db = loadLocalFile() || emptyDb();
+  db = migrate(loadLocalFile() || emptyDb());
   persistLocalFile();
   if (SUPABASE_ENABLED) queueSupabaseWrite(); // выгружаем состояние в облако при первом удачном подключении
   return db;

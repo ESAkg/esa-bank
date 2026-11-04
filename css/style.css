@@ -1000,3 +1000,125 @@ select.cat-select {
 /* --- Settings / menu rows subtle hover-press affordance --- */
 .settings-row, .menu-row { transition: background .15s ease, transform .1s ease; }
 .settings-row:active, .menu-row:active { transform: scale(0.99); background: rgba(255,255,255,0.03); }
+
+/* ======================================================
+   Face capture (регистрация, офис KYC)
+   ====================================================== */
+.reg-steps-4 .reg-step-line { width: 20px; }
+.face-capture-box {
+  position: relative; width: 100%; aspect-ratio: 3/4; max-height: 320px;
+  border-radius: var(--radius-lg); overflow: hidden; background: #0a1529;
+  border: 1px solid var(--border-subtle); margin-bottom: 14px;
+}
+.face-capture-box video, .face-capture-box img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  transform: scaleX(-1); /* зеркально, как в обычной фронтальной камере */
+}
+.face-oval-guide {
+  position: absolute; inset: 10% 20%; border: 2.5px dashed rgba(255,255,255,0.55);
+  border-radius: 50% / 42%; pointer-events: none;
+}
+.face-capture-actions { display: flex; gap: 10px; }
+.face-capture-actions .btn { flex: 1; }
+.camera-unavailable {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; gap: 10px; color: var(--text-dim); font-size: 13px; text-align: center; padding: 20px;
+}
+
+/* ======================================================
+   Карты (список реальных карт, мульти-карта)
+   ====================================================== */
+.card-tile { margin-bottom: 14px; }
+.card-tile .bal-card { margin-bottom: 8px; position: relative; }
+.card-network-badge {
+  position: absolute; top: 14px; right: 16px; font-size: 10.5px; font-weight: 800;
+  letter-spacing: 0.5px; color: rgba(255,255,255,0.85); background: rgba(0,0,0,0.18);
+  padding: 3px 8px; border-radius: 999px;
+}
+.card-tile .card-actions-grid { grid-template-columns: repeat(4, 1fr); }
+.card-tile .card-action-btn { padding: 10px 4px; font-size: 10.5px; }
+.card-tile .card-action-btn .icon { width: 17px; height: 17px; }
+.card-frozen-pill {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700;
+  color: var(--accent-red); background: rgba(229,72,77,0.12); padding: 3px 9px; border-radius: 999px; margin-top: 6px;
+}
+
+.card-plan-list { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.card-plan-option {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 14px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);
+  background: var(--card-bg-2); cursor: pointer; transition: border-color .15s ease, transform .1s ease;
+}
+.card-plan-option:active { transform: scale(0.98); }
+.card-plan-option.visa { border-left: 4px solid #1a6fd8; }
+.card-plan-option.elkart { border-left: 4px solid #1db954; }
+.card-plan-option b { display: block; font-size: 14.5px; }
+.card-plan-option .cpo-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.card-plan-option .cpo-fee { font-size: 13px; font-weight: 700; color: var(--accent-gold); white-space: nowrap; }
+
+/* ======================================================
+   "Бумажный" чек (реквизиты, квитанции)
+   ====================================================== */
+.requisites-paper, .paper-receipt {
+  background: #fdfdfb; color: #1a1a1a; border-radius: 10px; padding: 20px 18px;
+  font-family: 'Courier New', 'Consolas', monospace; font-size: 13px; line-height: 1.65;
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+  background-image: repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(0,0,0,0.035) 28px);
+}
+.paper-receipt-header { text-align: center; border-bottom: 1px dashed #999; padding-bottom: 10px; margin-bottom: 10px; }
+.paper-receipt-header .pr-logo { font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+.paper-receipt-header .pr-sub { font-size: 11px; color: #555; margin-top: 2px; }
+.paper-receipt-row { display: flex; justify-content: space-between; gap: 10px; margin: 3px 0; }
+.paper-receipt-row span:first-child { color: #555; }
+.paper-receipt-row span:last-child { text-align: right; font-weight: 600; }
+.paper-receipt-divider { border-top: 1px dashed #999; margin: 10px 0; }
+.paper-receipt-amount { text-align: center; font-size: 22px; font-weight: 800; margin: 10px 0; }
+.paper-receipt-status { text-align: center; font-weight: 700; margin-top: 8px; }
+.paper-receipt-status.ok { color: #1a7a3a; }
+.paper-receipt-barcode { text-align: center; font-size: 26px; letter-spacing: 2px; margin-top: 12px; opacity: 0.75; font-family: 'Libre Barcode 39', 'Courier New', monospace; }
+
+/* ======================================================
+   Копилки
+   ====================================================== */
+.piggy-card {
+  background: var(--card-bg-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  padding: 16px; margin-bottom: 12px;
+}
+.piggy-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.piggy-card-head b { font-size: 15.5px; }
+.piggy-amounts { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
+.piggy-amounts b { color: var(--text-light); font-size: 16px; }
+.piggy-progress-track { height: 8px; border-radius: 999px; background: var(--border-subtle); overflow: hidden; margin-bottom: 10px; }
+.piggy-progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue-400), var(--accent-gold)); border-radius: 999px; transition: width .4s ease; }
+.piggy-mode-pill { font-size: 11px; color: var(--text-dim); background: rgba(255,255,255,0.05); padding: 3px 9px; border-radius: 999px; }
+.piggy-actions { display: flex; gap: 8px; margin-top: 10px; }
+.piggy-actions .btn { flex: 1; padding: 9px; font-size: 12.5px; }
+
+/* ======================================================
+   Банкоматы / терминалы / офисы — карта
+   ====================================================== */
+.locator-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.locator-tab { flex: 1; padding: 9px; border-radius: 999px; border: 1px solid var(--border-subtle); background: transparent; color: var(--text-dim); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.locator-tab.active { background: var(--blue-500); border-color: var(--blue-500); color: #fff; }
+#locator-map { width: 100%; height: 220px; border-radius: var(--radius-md); overflow: hidden; margin-bottom: 14px; border: 1px solid var(--border-subtle); background: var(--card-bg-2); }
+.locator-item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+.locator-item .li-icon { width: 38px; height: 38px; border-radius: 50%; background: var(--card-bg-2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.locator-item .li-icon .icon { color: var(--blue-400); }
+.locator-item b { display: block; font-size: 14px; }
+.locator-item span { font-size: 12.5px; color: var(--text-dim); }
+
+/* ======================================================
+   Переводы: два окна (сумма -> подтверждение), контакты
+   ====================================================== */
+.transfer-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.confirm-summary { background: var(--card-bg-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px; }
+.confirm-row { display: flex; justify-content: space-between; padding: 7px 0; font-size: 13.5px; border-bottom: 1px solid var(--border-subtle); }
+.confirm-row:last-child { border-bottom: none; }
+.confirm-row span:first-child { color: var(--text-dim); }
+.confirm-row span:last-child { font-weight: 700; text-align: right; }
+.confirm-amount-big { text-align: center; font-size: 30px; font-weight: 800; margin: 6px 0 18px; }
+.contacts-list-item { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border-subtle); cursor: pointer; }
+.contacts-list-item:active { opacity: 0.7; }
+.contacts-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--blue-500); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.contacts-list-item b { display: block; font-size: 13.5px; }
+.contacts-list-item span { font-size: 12px; color: var(--text-dim); }

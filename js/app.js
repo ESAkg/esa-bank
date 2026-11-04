@@ -17,6 +17,8 @@ function goto(screenId, opts) {
   const isBack = !!(opts && opts.back);
   const prevActive = document.querySelector('.screen.active');
   if (prevActive && prevActive.id === 'screen-qr-pay' && screenId !== 'screen-qr-pay') stopQrScanner();
+  if (prevActive && prevActive.id === 'screen-register' && screenId !== 'screen-register' && typeof stopRegFaceCamera === 'function') stopRegFaceCamera();
+  if (screenId === 'screen-register') { if (typeof resetRegisterForm === 'function') resetRegisterForm(); }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active', 'screen-back'));
   const el = document.getElementById(screenId);
   if (el) {
@@ -35,6 +37,8 @@ function goto(screenId, opts) {
   if (screenId === 'screen-profile') loadProfile();
   if (screenId === 'screen-stats') loadStatsScreen();
   if (screenId === 'screen-cards') loadCardsScreen();
+  if (screenId === 'screen-piggy') loadPiggyScreen();
+  if (screenId === 'screen-atm-map') loadLocatorScreen();
   if (screenId === 'screen-settings') {
     const pinBtn = document.getElementById('open-pin-setup-btn');
     if (pinBtn) pinBtn.textContent = hasPin() ? t('settings_pin_change') : t('settings_pin_set');
@@ -195,19 +199,30 @@ document.getElementById('link-register').addEventListener('click', () => goto('s
 document.getElementById('link-forgot').addEventListener('click', (e) => { e.preventDefault(); goto('screen-forgot'); });
 
 // ======================================================
-// AUTH: REGISTER (2-step)
+// AUTH: REGISTER (4-step: ФИО/телефон → паспорт → лицо → пароль)
 // ======================================================
-let regData = { fullName: '', phone: '' };
+let regData = { fullName: '', phone: '', passportNumber: '', passportIssuedBy: '', birthDate: '', address: '', facePhoto: null };
+let regFaceStream = null;
+
+function showRegStep(n) {
+  [1, 2, 3, 4].forEach(i => {
+    document.getElementById(`reg-step-${i}-block`).style.display = (i === n) ? 'block' : 'none';
+    document.getElementById(`reg-dot-${i}`).classList.toggle('active', i <= n);
+  });
+  if (n === 3) startRegFaceCamera(); else stopRegFaceCamera();
+}
 
 function resetRegisterForm() {
   document.getElementById('form-register-step1').reset();
   document.getElementById('form-register-step2').reset();
-  document.getElementById('reg-step-1-block').style.display = 'block';
-  document.getElementById('reg-step-2-block').style.display = 'none';
-  document.getElementById('reg-dot-1').classList.add('active');
-  document.getElementById('reg-dot-2').classList.remove('active');
+  document.getElementById('form-register-step4').reset();
+  regData = { fullName: '', phone: '', passportNumber: '', passportIssuedBy: '', birthDate: '', address: '', facePhoto: null };
+  resetFaceCaptureUI();
+  showRegStep(1);
   setError('register-step1-error', '');
   setError('register-step2-error', '');
+  setError('register-step3-error', '');
+  setError('register-step4-error', '');
 }
 
 document.getElementById('form-register-step1').addEventListener('submit', (e) => {
@@ -216,18 +231,89 @@ document.getElementById('form-register-step1').addEventListener('submit', (e) =>
   const fullName = document.getElementById('reg-name').value.trim();
   const phone = document.getElementById('reg-phone').value.trim();
   if (fullName.length < 3) { setError('register-step1-error', t('err_fullname_required')); return; }
-  regData = { fullName, phone };
-  document.getElementById('reg-step-1-block').style.display = 'none';
-  document.getElementById('reg-step-2-block').style.display = 'block';
-  document.getElementById('reg-dot-1').classList.remove('active');
-  document.getElementById('reg-dot-2').classList.add('active');
+  regData.fullName = fullName; regData.phone = phone;
+  showRegStep(2);
 });
 
-document.getElementById('reg-back-btn').addEventListener('click', () => {
-  document.getElementById('reg-step-1-block').style.display = 'block';
-  document.getElementById('reg-step-2-block').style.display = 'none';
-  document.getElementById('reg-dot-1').classList.add('active');
-  document.getElementById('reg-dot-2').classList.remove('active');
+document.getElementById('reg-back-1-btn').addEventListener('click', () => showRegStep(1));
+document.getElementById('reg-back-2-btn').addEventListener('click', () => showRegStep(2));
+document.getElementById('reg-back-3-btn').addEventListener('click', () => showRegStep(3));
+
+document.getElementById('form-register-step2').addEventListener('submit', (e) => {
+  e.preventDefault();
+  setError('register-step2-error', '');
+  const passportNumber = document.getElementById('reg-passport-number').value.trim();
+  const passportIssuedBy = document.getElementById('reg-passport-issued-by').value.trim();
+  const birthDate = document.getElementById('reg-birth-date').value;
+  const address = document.getElementById('reg-address').value.trim();
+  if (!passportNumber || !passportIssuedBy || !birthDate || !address) {
+    setError('register-step2-error', t('err_passport_required'));
+    return;
+  }
+  regData.passportNumber = passportNumber;
+  regData.passportIssuedBy = passportIssuedBy;
+  regData.birthDate = birthDate;
+  regData.address = address;
+  showRegStep(3);
+});
+
+// ---------- Захват фото лица (камера) ----------
+function resetFaceCaptureUI() {
+  const video = document.getElementById('reg-face-video');
+  const preview = document.getElementById('reg-face-preview');
+  video.style.display = ''; preview.style.display = 'none'; preview.src = '';
+  document.getElementById('reg-face-capture-btn').style.display = '';
+  document.getElementById('reg-face-retake-btn').style.display = 'none';
+  document.getElementById('reg-face-continue-btn').style.display = 'none';
+}
+
+async function startRegFaceCamera() {
+  resetFaceCaptureUI();
+  const video = document.getElementById('reg-face-video');
+  const box = video.closest('.face-capture-box');
+  try {
+    regFaceStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    video.srcObject = regFaceStream;
+  } catch (err) {
+    const warn = document.createElement('div');
+    warn.className = 'camera-unavailable';
+    warn.innerHTML = `<svg class="icon icon-lg"><use href="#ic-camera"/></svg><span>${t('camera_unavailable')}</span>`;
+    box.appendChild(warn);
+    video.style.display = 'none';
+  }
+}
+function stopRegFaceCamera() {
+  if (regFaceStream) { regFaceStream.getTracks().forEach(tr => tr.stop()); regFaceStream = null; }
+}
+
+document.getElementById('reg-face-capture-btn').addEventListener('click', () => {
+  const video = document.getElementById('reg-face-video');
+  const canvas = document.getElementById('reg-face-canvas');
+  const preview = document.getElementById('reg-face-preview');
+  if (!video.videoWidth) { setError('register-step3-error', t('camera_unavailable')); return; }
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  // зеркалим так же, как превью, чтобы сохранённое фото выглядело естественно
+  ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  regData.facePhoto = canvas.toDataURL('image/jpeg', 0.82);
+  preview.src = regData.facePhoto;
+  preview.style.display = ''; video.style.display = 'none';
+  document.getElementById('reg-face-capture-btn').style.display = 'none';
+  document.getElementById('reg-face-retake-btn').style.display = '';
+  document.getElementById('reg-face-continue-btn').style.display = '';
+  setError('register-step3-error', '');
+  stopRegFaceCamera();
+});
+
+document.getElementById('reg-face-retake-btn').addEventListener('click', () => {
+  regData.facePhoto = null;
+  startRegFaceCamera();
+});
+
+document.getElementById('reg-face-continue-btn').addEventListener('click', () => {
+  if (!regData.facePhoto) { setError('register-step3-error', t('face_capture_required')); return; }
+  showRegStep(4);
 });
 
 function checkPwRules() {
@@ -244,29 +330,33 @@ function checkPwRules() {
 }
 document.getElementById('reg-password').addEventListener('input', checkPwRules);
 
-document.getElementById('form-register-step2').addEventListener('submit', async (e) => {
+document.getElementById('form-register-step4').addEventListener('submit', async (e) => {
   e.preventDefault();
-  setError('register-step2-error', '');
+  setError('register-step4-error', '');
   const password = document.getElementById('reg-password').value;
   const password2 = document.getElementById('reg-password2').value;
 
   if (!checkPwRules()) {
-    setError('register-step2-error', t('err_pw_rules'));
+    setError('register-step4-error', t('err_pw_rules'));
     return;
   }
   if (password !== password2) {
-    setError('register-step2-error', t('err_pw_mismatch'));
+    setError('register-step4-error', t('err_pw_mismatch'));
     return;
   }
   const btn = document.getElementById('register-submit');
   btn.disabled = true; btn.textContent = t('register_loading');
   try {
-    const data = await api('POST', '/auth/register', { fullName: regData.fullName, phone: regData.phone, password }, false);
+    const data = await api('POST', '/auth/register', {
+      fullName: regData.fullName, phone: regData.phone, password,
+      passportNumber: regData.passportNumber, passportIssuedBy: regData.passportIssuedBy,
+      birthDate: regData.birthDate, address: regData.address, facePhoto: regData.facePhoto
+    }, false);
     toast(t('account_created_toast'), 'success');
     resetRegisterForm();
     onAuthSuccess(data);
   } catch (err) {
-    setError('register-step2-error', err.message);
+    setError('register-step4-error', err.message);
   } finally {
     btn.disabled = false; btn.textContent = t('btn_register');
   }
@@ -396,6 +486,9 @@ function openTxDetail(tx) {
   document.getElementById('txd-receipt').textContent = tx.receiptNo || '—';
   document.getElementById('txd-recipient').textContent = tx.counterparty;
   document.getElementById('txd-amount').textContent = `${sign} ${formatMoney(tx.amount)} сом`;
+  document.getElementById('txd-barcode').textContent = tx.receiptNo ? `*${tx.receiptNo}*` : '';
+  const methodLabelEl = document.getElementById('txd-method-label');
+  if (methodLabelEl) methodLabelEl.textContent = tx.method === 'qr' ? t('method_qr_full') : (tx.deviceCode || t('method_phone_full'));
   const noteRow = document.getElementById('txd-note-row');
   if (tx.note) { noteRow.style.display = 'flex'; document.getElementById('txd-note').textContent = tx.note; }
   else { noteRow.style.display = 'none'; }
@@ -456,7 +549,6 @@ async function loadDashboard() {
     const { user } = await api('GET', '/me');
     state.user = user;
     applyUserChrome(user);
-    applyCardTheme(getCardTheme());
 
     document.getElementById('dash-firstname').textContent = firstName(user.fullName);
     document.getElementById('dash-balance').textContent = user.account.isOwner ? t('unlimited') : formatMoney(user.account.balance);
@@ -464,9 +556,12 @@ async function loadDashboard() {
     document.getElementById('dash-account').textContent = user.account.accountNumber;
     document.getElementById('dash-date').textContent = formatDateHuman(new Date());
 
-    // Карта привязана к тому же счёту (как в реальном банке — дебетовая карта = счёт)
-    document.getElementById('dash-card-balance').textContent = user.account.isOwner ? t('unlimited') : formatMoney(user.account.balance);
-    document.getElementById('dash-card-suffix').style.display = user.account.isOwner ? 'none' : '';
+    // Кошелёк и карты — отдельные продукты с собственными балансами
+    // (открытие карты не создаёт новых денег, см. /api/cards).
+    const { cards } = await api('GET', '/cards');
+    state.cards = cards;
+    renderDashCardVisual(cards);
+
     // Депозит — отдельный продукт, пока не открыт ни у одного клиента (честно показываем 0, не выдумываем)
     document.getElementById('dash-deposit-balance').textContent = '0.00';
 
@@ -480,6 +575,33 @@ async function loadDashboard() {
     if (err.status === 401) { forceLogout(); return; }
     toast(err.message, 'error');
   }
+}
+
+function renderDashCardVisual(cards) {
+  const visual = document.getElementById('dash-card-visual');
+  const label = document.getElementById('dash-card-label');
+  const balanceEl = document.getElementById('dash-card-balance');
+  const suffixEl = document.getElementById('dash-card-suffix');
+  const subEl = document.getElementById('dash-card-sub');
+  if (!visual) return;
+  const active = (cards || []).filter(c => c.status !== 'closed');
+  if (!active.length) {
+    visual.style.background = '';
+    visual.classList.add('card'); visual.classList.remove('frozen');
+    label.textContent = t('card_label');
+    balanceEl.textContent = '—';
+    suffixEl.style.display = 'none';
+    subEl.textContent = t('open_new_card');
+    return;
+  }
+  const card = active[0];
+  const theme = CARD_THEMES.find(th => th.id === card.themeId) || CARD_THEMES[0];
+  visual.style.background = theme.gradient;
+  visual.classList.toggle('frozen', card.status === 'frozen');
+  label.textContent = card.nickname;
+  balanceEl.textContent = formatMoney(card.balance);
+  suffixEl.style.display = '';
+  subEl.textContent = card.masked;
 }
 
 function applyUserChrome(user) {
@@ -662,26 +784,7 @@ function formatCompactMoney(n) {
 }
 
 // ======================================================
-// CARDS SCREEN (accounts overview)
-// ======================================================
-async function loadCardsScreen() {
-  try {
-    const { user } = await api('GET', '/me');
-    const bal = user.account.isOwner ? t('unlimited') : formatMoney(user.account.balance);
-    document.getElementById('cards-acc-balance').textContent = bal;
-    document.getElementById('cards-card-balance').textContent = bal;
-    document.getElementById('cards-acc-suffix').style.display = user.account.isOwner ? 'none' : '';
-    document.getElementById('cards-card-suffix').style.display = user.account.isOwner ? 'none' : '';
-    document.getElementById('cards-acc-no').textContent = user.account.accountNumber;
-    applyCardTheme(getCardTheme());
-    applyCardFrozenUI(isCardFrozen());
-  } catch (err) {
-    if (err.status === 401) forceLogout();
-  }
-}
-
-// ======================================================
-// CARD DESIGN THEMES
+// CARDS SCREEN (real wallet + multiple real cards)
 // ======================================================
 const CARD_THEMES = [
   { id: 'emerald', nameKey: 'theme_emerald', gradient: 'linear-gradient(135deg, #0f7a4a, #1db954 120%)' },
@@ -691,34 +794,97 @@ const CARD_THEMES = [
   { id: 'graphite', nameKey: 'theme_graphite', gradient: 'linear-gradient(135deg, #2b2f36, #5a6170 120%)' },
   { id: 'sunset', nameKey: 'theme_sunset', gradient: 'linear-gradient(135deg, #a6322f, #f0864a 120%)' },
 ];
+let cardPlansCache = null;
+let activeCardMenuId = null;
 
-function cardThemeStorageKey() { return `esa_card_theme_${(state.user && state.user.clientId) || 'default'}`; }
-function cardFrozenStorageKey() { return `esa_card_frozen_${(state.user && state.user.clientId) || 'default'}`; }
-function getCardTheme() { return localStorage.getItem(cardThemeStorageKey()) || 'emerald'; }
-function isCardFrozen() { return localStorage.getItem(cardFrozenStorageKey()) === '1'; }
-
-function applyCardTheme(themeId) {
-  const theme = CARD_THEMES.find(t2 => t2.id === themeId) || CARD_THEMES[0];
-  document.querySelectorAll('#dash-card-visual, #cards-card-visual').forEach(el => {
-    if (el) el.style.background = theme.gradient;
-  });
-}
-
-function applyCardFrozenUI(frozen) {
-  const visual = document.getElementById('cards-card-visual');
-  if (visual) visual.classList.toggle('frozen', frozen);
-  const btn = document.getElementById('card-freeze-btn');
-  if (btn) {
-    btn.querySelector('span').textContent = frozen ? t('unfreeze_card') : t('freeze_card');
+async function loadCardsScreen() {
+  try {
+    const { user } = await api('GET', '/me');
+    const bal = user.account.isOwner ? t('unlimited') : formatMoney(user.account.balance);
+    document.getElementById('cards-acc-balance').textContent = bal;
+    document.getElementById('cards-acc-suffix').style.display = user.account.isOwner ? 'none' : '';
+    document.getElementById('cards-acc-no').textContent = user.account.accountNumber;
+    const { cards } = await api('GET', '/cards');
+    state.cards = cards;
+    renderCardsList(cards);
+    renderDashCardVisual(cards);
+  } catch (err) {
+    if (err.status === 401) forceLogout();
   }
 }
 
-function renderCardThemeGrid() {
+function renderCardsList(cards) {
+  const list = document.getElementById('cards-list');
+  if (!cards.length) {
+    list.innerHTML = `<div class="empty-state"><div class="ei"><svg class="icon"><use href="#ic-card"/></svg></div>${t('coming_soon_cards')}</div>`;
+    return;
+  }
+  list.innerHTML = cards.map(card => {
+    const theme = CARD_THEMES.find(th => th.id === card.themeId) || CARD_THEMES[0];
+    const frozen = card.status === 'frozen';
+    return `
+    <div class="card-tile" data-card-id="${card.id}">
+      <div class="bal-card card${frozen ? ' frozen' : ''}" style="background:${theme.gradient}">
+        <span class="card-network-badge">${escapeHtml(card.network)}</span>
+        <div class="label"><svg class="icon"><use href="#ic-card"/></svg> <span>${escapeHtml(card.nickname)}</span></div>
+        <div class="amount">${formatMoney(card.balance)} <span>сом</span></div>
+        <div class="sub">${card.masked} · ${card.expiry}</div>
+        ${frozen ? `<span class="card-frozen-pill"><svg class="icon" style="width:12px;height:12px;"><use href="#ic-lock-closed"/></svg>${t('card_frozen_toast')}</span>` : ''}
+      </div>
+      <div class="card-actions-grid">
+        <button class="card-action-btn" data-card-action="freeze" data-card-id="${card.id}">
+          <svg class="icon"><use href="#ic-lock-closed"/></svg>
+          <span>${frozen ? t('unfreeze_card_btn') : t('freeze_card')}</span>
+        </button>
+        <button class="card-action-btn" data-card-action="theme" data-card-id="${card.id}">
+          <svg class="icon"><use href="#ic-palette"/></svg>
+          <span>${t('change_card_design')}</span>
+        </button>
+        <button class="card-action-btn" data-card-action="rename" data-card-id="${card.id}">
+          <svg class="icon"><use href="#ic-plus"/></svg>
+          <span>${t('rename_card')}</span>
+        </button>
+        <button class="card-action-btn" data-card-action="requisites" data-card-id="${card.id}">
+          <svg class="icon"><use href="#ic-doc"/></svg>
+          <span>${t('card_requisites')}</span>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('cards-list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-card-action]');
+  if (!btn) return;
+  const cardId = btn.dataset.cardId;
+  const action = btn.dataset.cardAction;
+  activeCardMenuId = cardId;
+  const card = (state.cards || []).find(c => c.id === cardId);
+  if (!card) return;
+
+  if (action === 'freeze') {
+    try {
+      const { card: updated } = await api('POST', `/cards/${cardId}/toggle-freeze`, {});
+      toast(updated.status === 'frozen' ? t('card_frozen_toast') : t('card_unfrozen_toast'), updated.status === 'frozen' ? 'error' : 'success');
+      loadCardsScreen();
+    } catch (err) { toast(err.message, 'error'); }
+  } else if (action === 'theme') {
+    renderCardThemeGrid(card.themeId);
+    openModal('card-theme-modal');
+  } else if (action === 'rename') {
+    document.getElementById('card-rename-input').value = card.nickname;
+    openModal('card-rename-modal');
+  } else if (action === 'requisites') {
+    renderCardRequisites(card);
+    openModal('card-requisites-modal');
+  }
+});
+
+function renderCardThemeGrid(currentThemeId) {
   const grid = document.getElementById('card-theme-grid');
-  const current = getCardTheme();
   grid.innerHTML = CARD_THEMES.map(theme => `
     <div>
-      <div class="card-theme-swatch${theme.id === current ? ' active' : ''}" data-theme-id="${theme.id}" style="background:${theme.gradient}">
+      <div class="card-theme-swatch${theme.id === currentThemeId ? ' active' : ''}" data-theme-id="${theme.id}" style="background:${theme.gradient}">
         <div class="ts-check"><svg class="icon"><use href="#ic-check"/></svg></div>
       </div>
       <div class="card-theme-label">${t(theme.nameKey)}</div>
@@ -726,35 +892,304 @@ function renderCardThemeGrid() {
   `).join('');
 }
 
-document.getElementById('open-card-theme-btn').addEventListener('click', () => {
-  renderCardThemeGrid();
-  openModal('card-theme-modal');
-});
-
-document.getElementById('card-theme-grid').addEventListener('click', (e) => {
+document.getElementById('card-theme-grid').addEventListener('click', async (e) => {
   const swatch = e.target.closest('[data-theme-id]');
-  if (!swatch) return;
+  if (!swatch || !activeCardMenuId) return;
   const themeId = swatch.dataset.themeId;
-  localStorage.setItem(cardThemeStorageKey(), themeId);
-  applyCardTheme(themeId);
-  renderCardThemeGrid();
-  toast(t('card_theme_applied'), 'success');
-  setTimeout(() => closeModal('card-theme-modal'), 450);
-});
-
-document.getElementById('card-freeze-btn').addEventListener('click', () => {
-  const frozen = !isCardFrozen();
-  localStorage.setItem(cardFrozenStorageKey(), frozen ? '1' : '0');
-  applyCardFrozenUI(frozen);
-  toast(frozen ? t('card_frozen_toast') : t('card_unfrozen_toast'), frozen ? 'error' : 'success');
-});
-
-document.getElementById('card-requisites-btn').addEventListener('click', async () => {
-  const acc = document.getElementById('cards-acc-no').textContent;
   try {
-    await navigator.clipboard.writeText(acc);
-  } catch (_) { /* буфер жеткиликсиз болушу мүмкүн — азыр гана көрсөтөбүз */ }
-  toast(`${acc} — ${t('copied_clipboard')}`, 'success');
+    await api('POST', `/cards/${activeCardMenuId}/theme`, { themeId });
+    toast(t('card_theme_applied'), 'success');
+    setTimeout(() => closeModal('card-theme-modal'), 350);
+    loadCardsScreen();
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+document.getElementById('form-card-rename').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!activeCardMenuId) return;
+  const nickname = document.getElementById('card-rename-input').value.trim();
+  if (!nickname) return;
+  try {
+    await api('POST', `/cards/${activeCardMenuId}/rename`, { nickname });
+    toast(t('card_opened_toast'), 'success');
+    closeModal('card-rename-modal');
+    loadCardsScreen();
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+function renderCardRequisites(card) {
+  const body = document.getElementById('card-requisites-body');
+  body.innerHTML = `
+    <div class="paper-receipt-header">
+      <div class="pr-logo">ESA BANK</div>
+      <div class="pr-sub">${escapeHtml(card.network)} · ${escapeHtml(card.nickname)}</div>
+    </div>
+    <div class="paper-receipt-row"><span>${t('field_fullname')}</span><span>${escapeHtml(card.holderName)}</span></div>
+    <div class="paper-receipt-row"><span>№</span><span>${card.number}</span></div>
+    <div class="paper-receipt-row"><span>Expiry</span><span>${card.expiry}</span></div>
+    <div class="paper-receipt-row"><span>CVV</span><span>${card.cvv}</span></div>
+    <div class="paper-receipt-divider"></div>
+    <div class="paper-receipt-row"><span>IBAN</span><span>${document.getElementById('cards-acc-no').textContent}</span></div>
+    <div class="paper-receipt-row"><span>SWIFT</span><span>ESABKG22</span></div>
+  `;
+}
+
+// ---------- Открытие новой карты ----------
+document.getElementById('open-new-card-btn').addEventListener('click', async () => {
+  try {
+    if (!cardPlansCache) {
+      const { plans } = await api('GET', '/cards/plans', null, false);
+      cardPlansCache = plans;
+    }
+    document.getElementById('card-plan-list').innerHTML = cardPlansCache.map(p => `
+      <div class="card-plan-option ${p.type}" data-plan-type="${p.type}">
+        <div>
+          <b>${escapeHtml(p.label)}</b>
+          <div class="cpo-sub">${p.type === 'visa' ? t('card_plan_visa_sub') : t('card_plan_elkart_sub')}</div>
+        </div>
+        <div class="cpo-fee">${p.annualFee > 0 ? formatMoney(p.annualFee) + ' сом/жыл' : t('free')}</div>
+      </div>`).join('');
+    openModal('new-card-modal');
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+document.getElementById('card-plan-list').addEventListener('click', async (e) => {
+  const opt = e.target.closest('[data-plan-type]');
+  if (!opt) return;
+  try {
+    await api('POST', '/cards', { type: opt.dataset.planType, themeId: CARD_THEMES[Math.floor(Math.random() * CARD_THEMES.length)].id });
+    toast(t('card_opened_toast'), 'success');
+    closeModal('new-card-modal');
+    loadCardsScreen();
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+// ---------- Внутренний перевод: кошелёк <-> карта ----------
+document.getElementById('open-internal-transfer-btn').addEventListener('click', () => openInternalTransferModal());
+
+function openInternalTransferModal() {
+  const cards = state.cards || [];
+  const wallet = { value: 'wallet', label: t('main_account') };
+  const options = [wallet, ...cards.map(c => ({ value: `card:${c.id}`, label: `${c.nickname} (${c.masked})` }))];
+  const fromSel = document.getElementById('internal-from');
+  const toSel = document.getElementById('internal-to');
+  fromSel.innerHTML = options.map(o => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join('');
+  toSel.innerHTML = options.map(o => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join('');
+  toSel.selectedIndex = options.length > 1 ? 1 : 0;
+  setError('internal-transfer-error', '');
+  openModal('internal-transfer-modal');
+}
+
+document.getElementById('form-internal-transfer').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  setError('internal-transfer-error', '');
+  const fromVal = document.getElementById('internal-from').value;
+  const toVal = document.getElementById('internal-to').value;
+  const amount = Number(document.getElementById('internal-amount').value);
+  if (fromVal === toVal) { setError('internal-transfer-error', t('err_same_account')); return; }
+  const body = { amount };
+  if (fromVal === 'wallet') { body.fromType = 'wallet'; } else { body.fromType = 'card'; body.fromId = fromVal.split(':')[1]; }
+  if (toVal === 'wallet') { body.toType = 'wallet'; } else { body.toType = 'card'; body.toId = toVal.split(':')[1]; }
+  try {
+    await api('POST', '/transfer/internal', body);
+    toast(t('transfer_success_toast'), 'success');
+    closeModal('internal-transfer-modal');
+    loadCardsScreen();
+  } catch (err) {
+    setError('internal-transfer-error', err.message);
+  }
+});
+
+// ======================================================
+// PIGGY BANKS (КОПИЛКИ)
+// ======================================================
+let activePiggyId = null;
+let activePiggyAction = 'deposit';
+
+async function loadPiggyScreen() {
+  try {
+    const { piggyBanks } = await api('GET', '/piggy');
+    state.piggyBanks = piggyBanks;
+    renderPiggyList(piggyBanks);
+  } catch (err) {
+    if (err.status === 401) forceLogout();
+  }
+}
+
+function renderPiggyList(list) {
+  const container = document.getElementById('piggy-list');
+  const empty = document.getElementById('piggy-empty');
+  if (!list.length) {
+    container.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  container.innerHTML = list.map(p => {
+    const pct = p.targetAmount > 0 ? Math.min(100, Math.round((p.balance / p.targetAmount) * 100)) : 0;
+    return `
+    <div class="piggy-card" data-piggy-id="${p.id}">
+      <div class="piggy-card-head">
+        <b>${escapeHtml(p.name)}</b>
+        <span class="piggy-mode-pill">${t('piggy_mode_' + p.mode)}</span>
+      </div>
+      <div class="piggy-amounts"><b>${formatMoney(p.balance)} сом</b>${p.targetAmount > 0 ? ` <span>/ ${formatMoney(p.targetAmount)} сом (${pct}%)</span>` : ''}</div>
+      ${p.targetAmount > 0 ? `<div class="piggy-progress-track"><div class="piggy-progress-fill" style="width:${pct}%"></div></div>` : ''}
+      <div class="piggy-actions">
+        <button class="btn btn-primary btn-sm" data-piggy-action="deposit" data-piggy-id="${p.id}">${t('piggy_deposit_btn')}</button>
+        <button class="btn btn-secondary btn-sm" data-piggy-action="withdraw" data-piggy-id="${p.id}">${t('piggy_withdraw_btn')}</button>
+        <button class="btn btn-secondary btn-sm" data-piggy-action="delete" data-piggy-id="${p.id}">${t('piggy_delete_btn')}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('piggy-list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-piggy-action]');
+  if (!btn) return;
+  const id = btn.dataset.piggyId;
+  const action = btn.dataset.piggyAction;
+  if (action === 'delete') {
+    try {
+      await api('DELETE', `/piggy/${id}`);
+      toast(t('piggy_deleted_toast'), 'success');
+      loadPiggyScreen();
+    } catch (err) { toast(err.message, 'error'); }
+    return;
+  }
+  activePiggyId = id;
+  activePiggyAction = action;
+  document.getElementById('piggy-amount-title').textContent = action === 'deposit' ? t('piggy_deposit_btn') : t('piggy_withdraw_btn');
+  document.getElementById('piggy-amount-input').value = '';
+  setError('piggy-amount-error', '');
+  openModal('piggy-amount-modal');
+});
+
+document.getElementById('form-piggy-amount').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!activePiggyId) return;
+  const amount = Number(document.getElementById('piggy-amount-input').value);
+  setError('piggy-amount-error', '');
+  try {
+    await api('POST', `/piggy/${activePiggyId}/${activePiggyAction}`, { amount });
+    toast(t('transfer_success_toast'), 'success');
+    closeModal('piggy-amount-modal');
+    loadPiggyScreen();
+  } catch (err) {
+    setError('piggy-amount-error', err.message);
+  }
+});
+
+document.getElementById('open-new-piggy-btn').addEventListener('click', () => {
+  document.getElementById('form-new-piggy').reset();
+  document.getElementById('piggy-auto-amount-field').style.display = 'none';
+  setError('new-piggy-error', '');
+  openModal('new-piggy-modal');
+});
+
+document.getElementById('piggy-mode').addEventListener('change', (e) => {
+  document.getElementById('piggy-auto-amount-field').style.display = e.target.value === 'manual' ? 'none' : '';
+});
+
+document.getElementById('form-new-piggy').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  setError('new-piggy-error', '');
+  const name = document.getElementById('piggy-name').value.trim();
+  const targetAmount = Number(document.getElementById('piggy-target').value) || 0;
+  const mode = document.getElementById('piggy-mode').value;
+  const autoAmount = Number(document.getElementById('piggy-auto-amount').value) || 0;
+  if (!name) { setError('new-piggy-error', t('err_fullname_required')); return; }
+  try {
+    await api('POST', '/piggy', { name, targetAmount, mode, autoAmount, icon: 'piggy' });
+    toast(t('piggy_created_toast'), 'success');
+    closeModal('new-piggy-modal');
+    loadPiggyScreen();
+  } catch (err) {
+    setError('new-piggy-error', err.message);
+  }
+});
+
+// ======================================================
+// ATM / TERMINAL / OFFICE LOCATOR
+// ======================================================
+let locatorMapInstance = null;
+let locatorData = { offices: [], devices: [] };
+let locatorFilter = 'all';
+
+async function loadLocatorScreen() {
+  try {
+    const data = await api('GET', '/locations', null, false);
+    locatorData = data;
+    renderLocatorMap();
+    renderLocatorList();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function renderLocatorMap() {
+  const el = document.getElementById('locator-map');
+  if (!el || typeof L === 'undefined') { if (el) el.innerHTML = `<div class="empty-state" style="padding:20px;">${t('map_unavailable')}</div>`; return; }
+  try {
+    if (!locatorMapInstance) {
+      locatorMapInstance = L.map(el, { zoomControl: true }).setView([42.8746, 74.5698], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap', maxZoom: 19
+      }).addTo(locatorMapInstance);
+      locatorMapInstance._markersLayer = L.layerGroup().addTo(locatorMapInstance);
+    }
+    locatorMapInstance._markersLayer.clearLayers();
+    const points = [];
+    if (locatorFilter !== 'device') {
+      locatorData.offices.forEach(o => {
+        if (o.lat == null || o.lng == null) return;
+        L.marker([o.lat, o.lng]).addTo(locatorMapInstance._markersLayer).bindPopup(`<b>${escapeHtml(o.name)}</b><br>${escapeHtml(o.address || '')}`);
+        points.push([o.lat, o.lng]);
+      });
+    }
+    if (locatorFilter !== 'office') {
+      locatorData.devices.forEach(d => {
+        if (!d.location || d.location.lat == null) return;
+        L.marker([d.location.lat, d.location.lng]).addTo(locatorMapInstance._markersLayer).bindPopup(`<b>${escapeHtml(d.label)}</b><br>${d.deviceCode}`);
+        points.push([d.location.lat, d.location.lng]);
+      });
+    }
+    if (points.length) locatorMapInstance.fitBounds(points, { padding: [24, 24], maxZoom: 15 });
+    setTimeout(() => locatorMapInstance.invalidateSize(), 150);
+  } catch (_) {
+    // Карта чыкпай калса (интернет же CDN жеткиликсиз) — тизме бойдон иштей берет
+    el.innerHTML = `<div class="empty-state" style="padding:20px;">${t('map_unavailable')}</div>`;
+  }
+}
+
+function renderLocatorList() {
+  const list = document.getElementById('locator-list');
+  const items = [];
+  if (locatorFilter !== 'device') {
+    locatorData.offices.forEach(o => items.push({ kind: 'office', name: o.name, sub: `${o.address || ''}${o.hours ? ' · ' + o.hours : ''}` }));
+  }
+  if (locatorFilter !== 'office') {
+    locatorData.devices.forEach(d => items.push({ kind: 'device', name: d.label, sub: `${t('locator_atm')} · ${d.deviceCode}${d.location && d.location.address ? ' · ' + d.location.address : ''}` }));
+  }
+  if (!items.length) {
+    list.innerHTML = `<div class="empty-state" style="padding:14px 0;">${t('stats_no_data')}</div>`;
+    return;
+  }
+  list.innerHTML = items.map(it => `
+    <div class="locator-item">
+      <div class="li-icon"><svg class="icon"><use href="#${it.kind === 'office' ? 'ic-pin' : 'ic-atm'}"/></svg></div>
+      <div><b>${escapeHtml(it.name)}</b><span>${escapeHtml(it.sub)}</span></div>
+    </div>`).join('');
+}
+
+document.querySelectorAll('.locator-tab').forEach(tabBtn => {
+  tabBtn.addEventListener('click', () => {
+    document.querySelectorAll('.locator-tab').forEach(b => b.classList.remove('active'));
+    tabBtn.classList.add('active');
+    locatorFilter = tabBtn.dataset.locatorFilter;
+    renderLocatorMap();
+    renderLocatorList();
+  });
 });
 
 // ======================================================
@@ -799,6 +1234,10 @@ function resetTransferPhoneForm() {
   document.getElementById('form-transfer-lookup').reset();
   document.getElementById('form-transfer-lookup').style.display = 'block';
   document.getElementById('transfer-recipient-block').style.display = 'none';
+  document.getElementById('transfer-contacts-block').style.display = 'none';
+  document.getElementById('transfer-contacts-list').innerHTML = '';
+  document.getElementById('transfer-mode-phone').classList.add('active');
+  document.getElementById('transfer-mode-contacts').classList.remove('active');
   setError('transfer-lookup-error', '');
   setError('transfer-submit-error', '');
   state.pendingRecipient = null;
@@ -841,10 +1280,89 @@ document.getElementById('transfer-submit-btn').addEventListener('click', async (
     return;
   }
   const recipientLabel = state.pendingRecipient.fullName;
-  runTransfer(
-    () => api('POST', '/transfer/phone', { phone: state.pendingRecipient.phone, amount, note, category }),
-    amount, recipientLabel, note
-  );
+  openTransferConfirm({
+    amount, recipientLabel, note,
+    methodLabel: `${recipientLabel} · ${state.pendingRecipient.phoneFormatted || ''}`,
+    run: () => api('POST', '/transfer/phone', { phone: state.pendingRecipient.phone, amount, note, category })
+  });
+});
+
+// ======================================================
+// TRANSFER: two-step confirmation (amount entry -> review & confirm)
+// ======================================================
+let pendingConfirmTransfer = null;
+
+function openTransferConfirm({ amount, recipientLabel, note, methodLabel, run }) {
+  pendingConfirmTransfer = { run };
+  document.getElementById('tc-amount').textContent = `${formatMoney(amount)} сом`;
+  document.getElementById('tc-recipient').textContent = recipientLabel;
+  document.getElementById('tc-method').textContent = methodLabel;
+  const noteRow = document.getElementById('tc-note-row');
+  if (note) { noteRow.style.display = 'flex'; document.getElementById('tc-note').textContent = note; }
+  else { noteRow.style.display = 'none'; }
+  openModal('transfer-confirm-modal');
+  const storedAmount = amount, storedRecipient = recipientLabel, storedNote = note;
+  pendingConfirmTransfer.amount = storedAmount;
+  pendingConfirmTransfer.recipientLabel = storedRecipient;
+  pendingConfirmTransfer.note = storedNote;
+}
+
+document.getElementById('transfer-confirm-btn').addEventListener('click', () => {
+  if (!pendingConfirmTransfer) return;
+  const { run, amount, recipientLabel, note } = pendingConfirmTransfer;
+  closeModal('transfer-confirm-modal');
+  pendingConfirmTransfer = null;
+  runTransfer(run, amount, recipientLabel, note);
+});
+
+// ======================================================
+// TRANSFER: tabs (phone number vs. contacts) + contacts matching
+// ======================================================
+document.getElementById('transfer-mode-phone').addEventListener('click', () => {
+  document.getElementById('transfer-mode-phone').classList.add('active');
+  document.getElementById('transfer-mode-contacts').classList.remove('active');
+  document.getElementById('form-transfer-lookup').style.display = 'block';
+  document.getElementById('transfer-contacts-block').style.display = 'none';
+});
+
+document.getElementById('transfer-mode-contacts').addEventListener('click', () => {
+  document.getElementById('transfer-mode-contacts').classList.add('active');
+  document.getElementById('transfer-mode-phone').classList.remove('active');
+  document.getElementById('form-transfer-lookup').style.display = 'none';
+  document.getElementById('transfer-contacts-block').style.display = 'block';
+});
+
+document.getElementById('transfer-contacts-permission-btn').addEventListener('click', async () => {
+  const listEl = document.getElementById('transfer-contacts-list');
+  if (!('contacts' in navigator && 'ContactsManager' in window)) {
+    listEl.innerHTML = `<div class="empty-state" style="padding:14px 0;">${t('contacts_not_supported')}</div>`;
+    return;
+  }
+  try {
+    const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+    const phones = [];
+    contacts.forEach(c => (c.tel || []).forEach(p => phones.push(p)));
+    const { matches } = await api('POST', '/clients/match-phones', { phones });
+    if (!matches.length) {
+      listEl.innerHTML = `<div class="empty-state" style="padding:14px 0;">${t('contacts_none_found')}</div>`;
+      return;
+    }
+    listEl.innerHTML = matches.map(m => `
+      <div class="contacts-list-item" data-phone="${m.phone}">
+        <div class="contacts-avatar">${initials(m.fullName)}</div>
+        <div><b>${escapeHtml(m.fullName)}</b><span>${m.phoneFormatted}</span></div>
+      </div>`).join('');
+  } catch (err) {
+    listEl.innerHTML = `<div class="empty-state" style="padding:14px 0;">${t('contacts_not_supported')}</div>`;
+  }
+});
+
+document.getElementById('transfer-contacts-list').addEventListener('click', async (e) => {
+  const item = e.target.closest('[data-phone]');
+  if (!item) return;
+  document.getElementById('transfer-phone').value = item.dataset.phone;
+  document.getElementById('transfer-mode-phone').click();
+  document.getElementById('form-transfer-lookup').requestSubmit();
 });
 
 // ======================================================
@@ -1057,10 +1575,11 @@ document.getElementById('qrpay-submit-btn').addEventListener('click', async () =
     return;
   }
   const recipientLabel = state.pendingQrRecipient.fullName;
-  runTransfer(
-    () => api('POST', '/transfer/qr', { payload: state.pendingQrRecipient.payload, amount, note, category }),
-    amount, recipientLabel, note
-  );
+  openTransferConfirm({
+    amount, recipientLabel, note,
+    methodLabel: `${recipientLabel} · ${t('method_qr_short')}`,
+    run: () => api('POST', '/transfer/qr', { payload: state.pendingQrRecipient.payload, amount, note, category })
+  });
 });
 
 // ======================================================
@@ -1107,7 +1626,10 @@ function showResult(data, errorObj, amount, recipientLabel, note) {
     document.getElementById('r-date').textContent = formatDateShort(tx.createdAt);
     document.getElementById('r-receipt').textContent = tx.receiptNo;
     document.getElementById('r-recipient').textContent = recipientLabel;
-    document.getElementById('r-amount').textContent = formatMoney(tx.amount) + ' сом';
+    document.getElementById('r-amount').textContent = '- ' + formatMoney(tx.amount) + ' сом';
+    document.getElementById('r-barcode').textContent = '*' + tx.receiptNo + '*';
+    const statusOkEl = document.getElementById('r-status-ok');
+    if (statusOkEl) statusOkEl.textContent = t('tx_success_status');
     const noteRow = document.getElementById('r-note-row');
     if (note) { noteRow.style.display = 'flex'; document.getElementById('r-note').textContent = note; }
     else { noteRow.style.display = 'none'; }

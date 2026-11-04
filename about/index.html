@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESA Bank — Ишенимдүү банк кызматтары</title>
+<meta name="description" content="ESA Bank — заманбап санарип банк. Карталар, которуулар, аманаттар жана банкоматтар тармагы.">
+<meta name="theme-color" content="#0a1f3d">
+<link rel="icon" href="../icons/icon-64.png" type="image/png">
+<link rel="stylesheet" href="../css/brand.css">
+<link rel="stylesheet" href="about.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="ic-mountain-logo" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="24" fill="url(#g-logo)"/>
+      <circle cx="24" cy="24" r="22.6" fill="none" stroke="url(#g-logo-ring)" stroke-width="1.3" opacity="0.9"/>
+      <circle cx="33.5" cy="13.5" r="3.1" fill="url(#g-logo-sun)"/>
+      <path d="M8 32L18 16L24 26L29 18L40 32" stroke="url(#g-logo-peaks)" stroke-width="3.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <defs>
+        <linearGradient id="g-logo" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#1f6feb"/><stop offset="0.55" stop-color="#0a1f3d"/><stop offset="1" stop-color="#05101f"/></linearGradient>
+        <linearGradient id="g-logo-ring" x1="0" y1="0" x2="48" y2="48"><stop stop-color="#f5e3a3"/><stop offset="0.5" stop-color="#d4af37"/><stop offset="1" stop-color="#9c7a1e"/></linearGradient>
+        <linearGradient id="g-logo-peaks" x1="8" y1="32" x2="40" y2="16"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#f5e3a3"/></linearGradient>
+        <radialGradient id="g-logo-sun"><stop stop-color="#fff3cf"/><stop offset="1" stop-color="#e8b84b"/></radialGradient>
+      </defs>
+    </symbol>
+    <symbol id="ic-card" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 9.5h19" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-transfer" viewBox="0 0 24 24"><path d="M3 8h14M13 4l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M21 16H7M11 12l-4 4 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-piggy" viewBox="0 0 24 24"><path d="M4 12a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2a2 2 0 0 1-2 2h-1l-1 3h-3l-.5-2h-3L9 19H6l-1-3a3 3 0 0 1-1-2.2V12Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="16" cy="11" r="0.8" fill="currentColor"/></symbol>
+    <symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6l7-3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-atm" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="7" y="7" width="7" height="5" rx="0.8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M7 15.5h3M7 18h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="17.5" cy="16.5" r="1" fill="currentColor"/></symbol>
+    <symbol id="ic-pin" viewBox="0 0 24 24"><path d="M12 22s7-7.1 7-12.5A7 7 0 0 0 5 9.5C5 14.9 12 22 12 22Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-phone" viewBox="0 0 24 24"><path d="M6.5 3h3l1.5 5-2.5 2a13 13 0 0 0 6.5 6.5l2-2.5 5 1.5v3a2 2 0 0 1-2.2 2C11.5 20 4 12.5 4.5 5.2A2 2 0 0 1 6.5 3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="ic-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="ic-apple" viewBox="0 0 24 24"><path d="M16.3 2.5c.1 1-.3 2-1 2.8-.7.8-1.8 1.4-2.8 1.3-.1-1 .4-2 1-2.7.7-.8 1.9-1.4 2.8-1.4ZM19.8 17c-.5 1.1-.7 1.6-1.4 2.6-.9 1.4-2.2 3.1-3.8 3.1-1.4 0-1.8-.9-3.7-.9s-2.4.9-3.7.9c-1.6 0-2.8-1.6-3.7-2.9C1.6 17.1.8 13 2.1 10.1c.9-1.9 2.5-3.1 4.2-3.1 1.5 0 2.4 1 3.7 1 1.2 0 2-1 3.7-1 1.5 0 3.1.8 4.2 2.2-3.7 2-3.1 7.3 1.9 7.8Z" fill="currentColor"/></symbol>
+    <symbol id="ic-android" viewBox="0 0 24 24"><path d="M6 10v6M18 10v6M8 9h8v8a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9ZM9 9 7.5 6M15 9l1.5-3M9.5 5.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+  </defs>
+</svg>
+
+<!-- ===================== HEADER ===================== -->
+<header class="site-header" id="site-header">
+  <div class="wrap header-inner">
+    <a href="#top" class="esa-logo">
+      <svg viewBox="0 0 48 48"><use href="#ic-mountain-logo"/></svg>
+      <div class="wordmark"><b>ESA Bank</b><span>санарип банк</span></div>
+    </a>
+    <nav class="main-nav" id="main-nav">
+      <a href="#products">Продукттар</a>
+      <a href="#tariffs">Тарифтер</a>
+      <a href="#locations">Банкоматтар</a>
+      <a href="#news">Жаңылыктар</a>
+      <a href="#about">Биз жөнүндө</a>
+    </nav>
+    <div class="header-actions">
+      <a href="../index.html" class="btn btn-secondary btn-sm">Кирүү</a>
+      <a href="#download" class="btn btn-primary btn-sm">Тиркемени алуу</a>
+      <button class="burger-btn" id="burger-btn"><svg class="icon"><use href="#ic-menu"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<div class="mobile-nav" id="mobile-nav">
+  <a href="#products">Продукттар</a>
+  <a href="#tariffs">Тарифтер</a>
+  <a href="#locations">Банкоматтар</a>
+  <a href="#news">Жаңылыктар</a>
+  <a href="#about">Биз жөнүндө</a>
+  <a href="../index.html" class="btn btn-secondary" style="margin-top:10px;">Кирүү</a>
+</div>
+
+<!-- ===================== HERO ===================== -->
+<section class="hero" id="top">
+  <div class="wrap hero-inner">
+    <div class="hero-text">
+      <span class="pill pill-gold">Кыргызстандын санарип банкы</span>
+      <h1>Акчаңыз менен<br>эркин иштеңиз.</h1>
+      <p>ESA Bank — толугу менен санарип банк: карта ачуу, которуу, аманат топтоо жана банкоматтарды бир тиркемеден башкаруу.</p>
+      <div class="hero-cta-row">
+        <a href="#download" class="btn btn-primary btn-lg">Тиркемени жүктөп алуу</a>
+        <a href="#products" class="btn btn-secondary btn-lg">Продукттар менен таанышуу</a>
+      </div>
+      <div class="hero-stats">
+        <div><b id="stat-clients">10,000+</b><span>кардар</span></div>
+        <div><b id="stat-devices">250+</b><span>банкомат жана терминал</span></div>
+        <div><b>24/7</b><span>колдоо кызматы</span></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-card-stack">
+        <div class="hero-card hero-card-back"></div>
+        <div class="hero-card hero-card-front">
+          <div class="hc-top">
+            <svg viewBox="0 0 48 48" style="width:30px;height:30px;"><use href="#ic-mountain-logo"/></svg>
+            <span>ESA Visa</span>
+          </div>
+          <div class="hc-number">4169&nbsp;&nbsp;82**&nbsp;&nbsp;****&nbsp;&nbsp;7341</div>
+          <div class="hc-bottom">
+            <div><span>КАРТА ЭЭСИ</span><b>ESA BANK CLIENT</b></div>
+            <div><span>АМАЛ МӨӨНӨТҮ</span><b>12/29</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TRUST STRIP ===================== -->
+<section class="trust-strip">
+  <div class="wrap trust-inner">
+    <div class="trust-item"><svg class="icon"><use href="#ic-shield"/></svg> Маалыматтарды коргоо</div>
+    <div class="trust-item"><svg class="icon"><use href="#ic-pin"/></svg> PIN жана Face ID</div>
+    <div class="trust-item"><svg class="icon"><use href="#ic-check"/></svg> Лицензияланган банк</div>
+    <div class="trust-item"><svg class="icon"><use href="#ic-phone"/></svg> 24/7 колдоо: 0312&nbsp;00&nbsp;00&nbsp;00</div>
+  </div>
+</section>
+
+<!-- ===================== PRODUCTS ===================== -->
+<section class="section" id="products">
+  <div class="wrap">
+    <h2 class="section-title">Биздин продукттар</h2>
+    <p class="section-sub">Күнүмдүк каржылык муктаждыктарыңыз үчүн баарын бир жерден.</p>
+    <div class="products-grid">
+      <div class="product-card">
+        <div class="product-icon"><svg class="icon-lg"><use href="#ic-card"/></svg></div>
+        <h3>Эсептик карталар</h3>
+        <p>ESA Visa жана ESA Элкарт карталары — өз шарттары жана жылдык акысы менен.</p>
+        <a href="#tariffs" class="btn-ghost">Тарифтерди көрүү →</a>
+      </div>
+      <div class="product-card">
+        <div class="product-icon"><svg class="icon-lg"><use href="#ic-transfer"/></svg></div>
+        <h3>Акы алынбаган которуулар</h3>
+        <p>Телефон номери, байланыштар же өз эсептериңиздин ортосунда — бир нече секундда.</p>
+        <a href="#download" class="btn-ghost">Тиркемени алуу →</a>
+      </div>
+      <div class="product-card">
+        <div class="product-icon"><svg class="icon-lg"><use href="#ic-piggy"/></svg></div>
+        <h3>Копилка (максаттуу топтоо)</h3>
+        <p>Максат коюп, автоматтык түрдө күн сайын, жума сайын же ай сайын топтоңуз.</p>
+        <a href="#download" class="btn-ghost">Көбүрөөк билүү →</a>
+      </div>
+      <div class="product-card">
+        <div class="product-icon"><svg class="icon-lg"><use href="#ic-atm"/></svg></div>
+        <h3>Банкомат жана терминал</h3>
+        <p>Накталай акча алуу жана эсепти QR аркылуу толуктоо — филиалдарда жана шаар боюнча.</p>
+        <a href="#locations" class="btn-ghost">Жайгашкан жерлер →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TARIFFS ===================== -->
+<section class="section section-alt" id="tariffs">
+  <div class="wrap">
+    <h2 class="section-title">Карта тарифтери</h2>
+    <p class="section-sub">Так, жашыруун төлөмдөрсүз шарттар.</p>
+    <div class="tariff-grid">
+      <div class="tariff-card">
+        <div class="tariff-head"><span class="pill pill-blue">Visa</span><h3>ESA Visa Classic</h3></div>
+        <div class="tariff-price">500 сом<span>/жылына</span></div>
+        <ul class="tariff-list">
+          <li><svg class="icon"><use href="#ic-check"/></svg> Эл аралык төлөм тармагы</li>
+          <li><svg class="icon"><use href="#ic-check"/></svg> 3 жылга чейин амал мөөнөтү</li>
+          <li><svg class="icon"><use href="#ic-check"/></svg> Онлайн дүкөндөрдө төлөм</li>
+          <li><svg class="icon"><use href="#ic-check"/></svg> Мобилдик тиркемеден башкаруу</li>
+        </ul>
+        <a href="#download" class="btn btn-primary" style="width:100%;">Ачуу</a>
+      </div>
+      <div class="tariff-card featured">
+        <div class="tariff-head"><span class="pill pill-gold">Элкарт</span><h3>ESA Элкарт</h3></div>
+        <div class="tariff-price">150 сом<span>/жылына</span></div>
+        <ul class="tariff-list">
+          <li><svg class="icon"><use href="#ic-check"/></svg> Кыргызстан боюнча кеңири тармак</li>
+          <li><svg class="icon"><use href="#ic-check"/></svg> 5 жылга чейин амал мөөнөтү</li>
+          <li><svg class="icon"><use href="#ic-check"/></svg> Төмөн жылдык акы</li>
+          <li><svg class="icon"><use href="#ic-check"/></svg> Мобилдик тиркемеден башкаруу</li>
+        </ul>
+        <a href="#download" class="btn btn-gold" style="width:100%;">Ачуу</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== LOCATIONS ===================== -->
+<section class="section" id="locations">
+  <div class="wrap">
+    <h2 class="section-title">Банкоматтар жана офистер</h2>
+    <p class="section-sub">Жакынкы ESA Bank тармагын табыңыз.</p>
+    <div class="locations-layout">
+      <div id="about-locator-map" class="about-map"></div>
+      <div id="about-locator-list" class="about-locator-list"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== NEWS ===================== -->
+<section class="section section-alt" id="news">
+  <div class="wrap">
+    <h2 class="section-title">Жаңылыктар</h2>
+    <div class="news-grid">
+      <article class="news-card">
+        <div class="news-date">Ноябрь 2026</div>
+        <h3>ESA Bank толук санарип экосистемасын жайылтты</h3>
+        <p>Мобилдик тиркеме, офис системасы жана банкомат/терминал тармагы бир платформада бириктирилди.</p>
+      </article>
+      <article class="news-card">
+        <div class="news-date">Октябрь 2026</div>
+        <h3>Копилка — жаңы максаттуу топтоо кызматы</h3>
+        <p>Эми максат коюп, автоматтык режимде акча топтой аласыз.</p>
+      </article>
+      <article class="news-card">
+        <div class="news-date">Сентябрь 2026</div>
+        <h3>Face ID жана PIN-код менен коопсуздук жогорулатылды</h3>
+        <p>Тиркемеге кирүү эми биометрия жана PIN-код менен корголот.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ABOUT ===================== -->
+<section class="section" id="about">
+  <div class="wrap about-inner">
+    <div>
+      <h2 class="section-title" style="text-align:left;">Биз жөнүндө</h2>
+      <p class="about-text">ESA Bank — 2026-жылы негизделген заманбап санарип банк. Биздин максат — ар бир кардарга ишенимдүү, ыңгайлуу жана айкын банк кызматтарын сунуштоо. Биз физикалык филиалдарга көз каранды болбостон, толугу менен санарип тажрыйба түзүүгө багыт алганбыз.</p>
+      <div class="about-badges">
+        <div class="about-badge"><svg class="icon"><use href="#ic-shield"/></svg> Коопсуз жана ишенимдүү</div>
+        <div class="about-badge"><svg class="icon"><use href="#ic-check"/></svg> Лицензияланган</div>
+      </div>
+    </div>
+    <div class="about-contact card-surface">
+      <h4>Байланыш</h4>
+      <p>📞 0312 00 00 00 (24/7)</p>
+      <p>✉️ support@esabank.kg</p>
+      <p>📍 Бишкек ш., Чүй проспекти, 123</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== DOWNLOAD CTA ===================== -->
+<section class="download-cta" id="download">
+  <div class="wrap download-inner">
+    <div>
+      <h2>Тиркемени азыр жүктөп алыңыз</h2>
+      <p>ESA Bank тиркемесин телефонуңузга орнотуп, банк кызматтарын кол астыңызда алып жүрүңүз.</p>
+      <div class="download-buttons">
+        <a href="../index.html" class="btn btn-primary btn-lg"><svg class="icon"><use href="#ic-apple"/></svg> iOS / Web</a>
+        <a href="../index.html" class="btn btn-secondary btn-lg"><svg class="icon"><use href="#ic-android"/></svg> Android / PWA</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="esa-logo">
+      <svg viewBox="0 0 48 48" style="width:30px;height:30px;"><use href="#ic-mountain-logo"/></svg>
+      <div class="wordmark"><b>ESA Bank</b></div>
+    </div>
+    <div class="footer-links">
+      <a href="#products">Продукттар</a>
+      <a href="#tariffs">Тарифтер</a>
+      <a href="#locations">Банкоматтар</a>
+      <a href="../office/">Офис кызматкерлери үчүн</a>
+      <a href="../terminal/">Терминал</a>
+    </div>
+    <div class="footer-copy">© 2026 ESA Bank. Бардык укуктар корголгон. (Окуу/демо долбоор)</div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="about.js"></script>
+</body>
+</html>
