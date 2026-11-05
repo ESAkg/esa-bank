@@ -166,6 +166,8 @@
 
   async function endClientSession(auto) {
     clearTimeout(idleReturnTimer);
+    clearInterval(depositTimerInterval);
+    stopDepositCamera();
     try { await api('POST', '/device/session/end'); } catch (e) {}
     currentClient = null;
     if (auto) toast('Убакыт бүткөндүктөн сессия аяктады', 'err');
@@ -247,6 +249,25 @@
   $('#withdraw-done-btn').addEventListener('click', () => { endClientSession(false); });
 
   // ===================== DEPOSIT: SCAN =====================
+  let depositCameraStream = null;
+  async function startDepositCamera() {
+    const video = $('#deposit-camera-video');
+    const note = $('#camera-unavailable-note');
+    note.style.display = 'none';
+    video.style.display = 'block';
+    try {
+      depositCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      video.srcObject = depositCameraStream;
+    } catch (e) {
+      // Камера жок же уруксат берилген жок — визуалсыз, бирок толук иштеген симуляция режимине өтөбүз
+      video.style.display = 'none';
+      note.style.display = 'flex';
+    }
+  }
+  function stopDepositCamera() {
+    if (depositCameraStream) { depositCameraStream.getTracks().forEach(t => t.stop()); depositCameraStream = null; }
+  }
+
   $('#menu-deposit-btn').addEventListener('click', startDepositSession);
   async function startDepositSession() {
     $('#deposit-scan-error').textContent = '';
@@ -257,7 +278,8 @@
       renderDepositTotal(0);
       startDepositCountdown(data.expiresAt);
       showScreen('k-screen-deposit-scan');
-      setScannerStatus('idle', 'Купюраны тандап, машинага салыңыз');
+      startDepositCamera();
+      setScannerStatus('idle', '');
     } catch (err) { toast(err.message || 'Ката кетти', 'err'); }
   }
   function renderDepositTotal(total) {
@@ -283,18 +305,26 @@
     depositTimerInterval = setInterval(tick, 400);
   }
   async function cancelDepositOnTimeout() {
+    stopDepositCamera();
     try { await api('POST', '/device/deposit/cancel', { sessionId: depositSessionId }); } catch (e) {}
     showOverlay('Убакыт бүттү', 'Операция токтотулду. Эгер купюра салган болсоңуз, аны алып, кайра аракет кылыңыз.');
     overlayNextAction = () => { showScreen('k-screen-menu'); };
   }
   function setScannerStatus(kind, text) {
-    const el = $('.scanner-slot') || $('#k-screen-deposit-scan .scanner-slot');
-    const slot = document.querySelector('.scanner-slot');
-    slot.classList.remove('scanning', 'ok-flash', 'err-flash');
-    if (kind === 'scanning') slot.classList.add('scanning');
-    if (kind === 'ok') slot.classList.add('ok-flash');
-    if (kind === 'err') slot.classList.add('err-flash');
-    $('#scanner-status-text').textContent = text;
+    const box = $('#scanner-camera-box');
+    box.classList.remove('scanning', 'ok-flash', 'err-flash');
+    if (kind === 'scanning') box.classList.add('scanning');
+    if (kind === 'ok') box.classList.add('ok-flash');
+    if (kind === 'err') box.classList.add('err-flash');
+    $('#scanner-status-text').textContent = text || '';
+  }
+  function showScanFlash(kind, text) {
+    const flash = $('#scan-result-flash');
+    flash.textContent = text;
+    flash.className = 'scan-result-flash show' + (kind ? ' ' + kind : '');
+  }
+  function hideScanFlash() {
+    $('#scan-result-flash').className = 'scan-result-flash';
   }
   function randomSerial() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
@@ -308,22 +338,30 @@
     scanningNow = true;
     $all('.bill-btn').forEach(b => b.disabled = true);
     $('#deposit-scan-error').textContent = '';
-    setScannerStatus('scanning', 'Купюра таанылууда...');
-    await sleep(900 + Math.random() * 500);
+    hideScanFlash();
+    // 1) Камера менен "сүрөткө тартуу" жана анализдөө симуляциясы (лазер сызык анимациясы)
+    setScannerStatus('scanning', 'Купюра камера менен тартылууда...');
+    await sleep(650);
+    setScannerStatus('scanning', 'Анализделүүдө...');
+    await sleep(700 + Math.random() * 500);
     try {
       const denom = Number(btn.dataset.denom);
       const serial = randomSerial();
       const data = await api('POST', '/device/deposit/scan', { sessionId: depositSessionId, denomination: denom, serial });
       renderDepositTotal(data.total);
       startDepositCountdown(data.expiresAt);
-      setScannerStatus('ok', `Кабыл алынды: ${denom} сом`);
-      await sleep(500);
-      setScannerStatus('idle', 'Дагы купюра салыңыз же ырастаңыз');
+      setScannerStatus('ok', '');
+      showScanFlash('ok', `✓ Таанылды: ${denom} сом`);
+      await sleep(750);
+      hideScanFlash();
+      setScannerStatus('idle', 'Дагы купюра көрсөтүңүз же ырастаңыз');
     } catch (err) {
-      setScannerStatus('err', err.message || 'Купюра кабыл алынган жок');
+      setScannerStatus('err', '');
+      showScanFlash('err', err.message || 'Купюра таанылган жок');
       $('#deposit-scan-error').textContent = err.message || 'Ката кетти';
-      await sleep(600);
-      setScannerStatus('idle', 'Купюраны тандап, машинага салыңыз');
+      await sleep(900);
+      hideScanFlash();
+      setScannerStatus('idle', 'Купюраны камерага көрсөтүп, номиналын тандаңыз');
     } finally {
       scanningNow = false;
       $all('.bill-btn').forEach(b => b.disabled = false);
@@ -332,12 +370,14 @@
 
   $('#deposit-cancel-btn').addEventListener('click', async () => {
     clearInterval(depositTimerInterval);
+    stopDepositCamera();
     try { await api('POST', '/device/deposit/cancel', { sessionId: depositSessionId }); } catch (e) {}
     showScreen('k-screen-menu');
   });
 
   $('#deposit-confirm-btn').addEventListener('click', async () => {
     clearInterval(depositTimerInterval);
+    stopDepositCamera();
     showScreen('k-screen-deposit-processing');
     await sleep(1500);
     try {

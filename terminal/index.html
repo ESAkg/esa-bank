@@ -163,10 +163,17 @@
       <div class="v" id="deposit-total">0 сом</div>
       <div class="deposit-min-hint" id="deposit-min-hint">Минималдуу сумма: 100 000 сом · Комиссия: 0 сом</div>
     </div>
-    <div class="scanner-slot">
-      <svg class="icon-lg"><use href="#ic-camera"/></svg>
-      <p id="scanner-status-text">Купюраны тандап, машинага салыңыз</p>
+    <div class="scanner-camera-box" id="scanner-camera-box">
+      <video id="deposit-camera-video" autoplay playsinline muted></video>
+      <div class="scan-frame-guide"></div>
+      <div class="scan-laser" id="scan-laser"></div>
+      <div class="scan-result-flash" id="scan-result-flash"></div>
+      <div class="camera-unavailable-note" id="camera-unavailable-note" style="display:none;">
+        <svg class="icon-lg"><use href="#ic-camera"/></svg>
+        <span>Камера жеткиликсиз — сканерлөө симуляция режиминде иштейт</span>
+      </div>
     </div>
+    <p id="scanner-status-text" class="scanner-status-text">Купюраны камерага көрсөтүп, номиналын төмөндөн тандаңыз</p>
     <p class="bills-hint">Купюраны тандаңыз:</p>
     <div class="bills-grid" id="deposit-bills-grid">
       <button class="bill-btn" data-denom="50">50 сом</button>
