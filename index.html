@@ -714,6 +714,15 @@
       <div class="field-error" id="qrpay-submit-error"></div>
       <button class="btn btn-primary" id="qrpay-submit-btn" data-i18n="btn_pay">Төлөө</button>
     </div>
+
+    <div id="device-pair-block" class="content" style="display:none; text-align:center;">
+      <div class="status-circle" id="device-pair-icon" style="margin:30px auto 18px;"><svg class="icon icon-lg"><use href="#ic-check"/></svg></div>
+      <div class="result-status-text" id="device-pair-title" data-i18n="device_pair_success_title">Терминал менен байланыш орнотулду!</div>
+      <div class="result-sub" id="device-pair-device-label" style="margin-bottom:8px;"></div>
+      <p style="color:var(--text-dim); font-size:13.5px; padding:0 20px; line-height:1.5;" data-i18n="device_pair_instruction">Эми терминалдын экранынан операцияны (акча алуу же эсепти толуктоо) улантыңыз.</p>
+      <div class="field-error" id="device-pair-error" style="text-align:center;"></div>
+      <button class="btn btn-primary" id="device-pair-done-btn" style="margin-top:20px;" data-i18n="btn_done">Аяктоо</button>
+    </div>
   </section>
 
   <!-- ===================== PROCESSING ===================== -->

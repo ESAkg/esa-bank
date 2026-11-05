@@ -1387,12 +1387,53 @@ async function loadMyQr() {
 function resetQrPayForm() {
   document.getElementById('qr-cam-view').style.display = 'flex';
   document.getElementById('qr-pay-block').style.display = 'none';
+  document.getElementById('device-pair-block').style.display = 'none';
   document.getElementById('qr-manual-code').value = '';
   document.getElementById('qr-manual-wrap').style.display = 'none';
   document.getElementById('qr-detect-card').style.display = 'none';
   setError('qr-scan-error', '');
   startQrScanner();
 }
+
+// Банкомат/терминалдын QR-коду "ESA-DEVICE|<deviceCode>|<pairToken>" форматын
+// base64url менен коддолгон түрдө чыгарат (сервердеги makeDevicePairPayload менен дал келет).
+function base64UrlDecode(str) {
+  try {
+    let s = String(str).replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    return atob(s);
+  } catch (_) { return null; }
+}
+function isDevicePairPayload(payload) {
+  const decoded = base64UrlDecode(payload);
+  return !!(decoded && decoded.indexOf('ESA-DEVICE|') === 0);
+}
+async function handleDevicePairPayload(payload) {
+  stopQrScanner();
+  document.getElementById('qr-cam-view').style.display = 'none';
+  document.getElementById('qr-pay-block').style.display = 'none';
+  document.getElementById('device-pair-block').style.display = 'block';
+  const icon = document.getElementById('device-pair-icon');
+  const title = document.getElementById('device-pair-title');
+  const label = document.getElementById('device-pair-device-label');
+  icon.className = 'status-circle processing';
+  title.textContent = t('device_pair_connecting');
+  label.textContent = '';
+  setError('device-pair-error', '');
+  try {
+    const result = await api('POST', '/device/pair', { payload });
+    icon.className = 'status-circle success';
+    title.textContent = t('device_pair_success_title');
+    label.textContent = `${result.deviceLabel} (${result.deviceCode})`;
+  } catch (err) {
+    icon.className = 'status-circle fail';
+    title.textContent = t('err_generic');
+    setError('device-pair-error', err.message);
+  }
+}
+document.getElementById('device-pair-done-btn').addEventListener('click', () => {
+  goto('screen-dashboard');
+});
 
 // Разбор QR в стандарте EMVCo "Merchant Presented Mode" (TLV: tag(2) + len(2) + value) —
 // это открытый международный стандарт, которым пользуются платёжные QR многих банков
@@ -1434,6 +1475,9 @@ function detectKnownBankLabel(text) {
 async function handleQrPayload(payload) {
   setError('qr-scan-error', '');
   document.getElementById('qr-detect-card').style.display = 'none';
+  if (isDevicePairPayload(payload)) {
+    return handleDevicePairPayload(payload);
+  }
   try {
     const resolved = await api('POST', '/qr/resolve', { payload });
     state.pendingQrRecipient = { payload, ...resolved };
