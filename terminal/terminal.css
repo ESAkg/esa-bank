@@ -158,15 +158,20 @@ body {
   gap: 8px; background: var(--navy-900); color: var(--text-dim); font-size: 12px; text-align: center; padding: 0 20px;
 }
 .scanner-status-text { text-align: center; color: var(--text-dim); font-size: 12.5px; margin: 0 0 14px; }
-.bills-hint { font-size: 12px; color: var(--text-dim); margin: 0 0 8px; }
-.bills-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
-.bill-btn {
-  background: linear-gradient(135deg, #1c4784, #15376a); border: 1px solid var(--border-subtle);
-  border-radius: 8px; padding: 12px 4px; color: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer;
-  transition: transform .08s;
+#scan-bill-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px;
 }
-.bill-btn:active { transform: scale(0.95); }
-.bill-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#scan-bill-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+#scan-bill-btn .icon { width: 20px; height: 20px; }
+.recognized-note-badge {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: rgba(46, 204, 113, 0.12); border: 1px solid rgba(46, 204, 113, 0.4);
+  border-radius: 10px; padding: 8px 12px; margin: 0 0 12px; font-size: 12.5px; color: var(--text-main, #fff);
+  animation: badgeIn .25s ease;
+}
+.recognized-note-badge .amt { font-weight: 800; color: #2ecc71; }
+.recognized-note-badge .conf-low { color: #f5a623; font-weight: 600; }
+@keyframes badgeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ---------- overlay ---------- */
 .k-overlay {

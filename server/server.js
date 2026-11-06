@@ -1,7 +1,8 @@
 'use strict';
 /**
- * ESA Bank — backend (чистый Node.js, без внешних npm-зависимостей,
- * чтобы проект запускался где угодно без риска ошибок установки).
+ * ESA Bank — backend (чистый Node.js http-сервер без веб-фреймворков;
+ * единственные npm-зависимости — tesseract.js и jimp, нужны только для
+ * настоящего распознавания купюр камерой терминала, см. billScanner.js).
  */
 
 const http = require('http');
@@ -16,6 +17,7 @@ const {
   normalizePhone, formatPhone, genAccountNumber, genReceiptNo, money,
   genCardNumberSimple, genCvv, cardExpiry, maskCardNumber, genDeviceCode
 } = require('./lib/helpers');
+const { recognizeBill, warmup: warmupOcr, isSameBill } = require('./billScanner');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 дней
@@ -453,13 +455,14 @@ function sendJson(res, status, obj) {
   res.end(body);
 }
 
-function readJsonBody(req) {
+function readJsonBody(req, maxSize) {
+  const limit = maxSize || 1e6;
   return new Promise((resolve, reject) => {
     let data = '';
     let size = 0;
     req.on('data', chunk => {
       size += chunk.length;
-      if (size > 1e6) { reject(new Error('Payload too large')); req.destroy(); return; }
+      if (size > limit) { reject(new Error('Payload too large')); req.destroy(); return; }
       data += chunk;
     });
     req.on('end', () => {
@@ -1607,6 +1610,69 @@ route('POST', '/api/device/deposit/scan', async (req, res) => {
   sendJson(res, 200, { sessionId: ds.id, total: ds.total, notesCount: ds.notes.length, expiresAt: ds.expiresAt, lastDenom: denom });
 });
 
+// --- Пополнение через терминал: настоящее сканирование купюры камерой ---
+// Клиент присылает кадр с живой камеры (JPEG в base64). Сервер реально
+// распознаёт номинал и серийный номер через OCR (tesseract.js) + анализ
+// цвета, и проверяет перцептивный хэш фото по всей системе — чтобы одна и
+// та же купюра не могла быть внесена дважды (даже на разных терминалах,
+// даже если серийный номер в этот раз не прочитался чётко).
+route('POST', '/api/device/deposit/scan-image', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  let body;
+  try { body = await readJsonBody(req, 8e6); }
+  catch (err) { return sendJson(res, 413, { error: 'Сүрөт өтө чоң (Снимок слишком большой), кайра аракет кылыңыз.' }); }
+
+  const d = db();
+  const ds = d.depositSessions.find(s => s.id === body.sessionId && s.deviceId === device.id && s.status === 'active');
+  if (!ds) return sendJson(res, 400, { error: 'Сессиянын мөөнөтү өттү (Сессия сканирования истекла).' });
+  if (ds.expiresAt < Date.now()) { ds.status = 'expired'; storeDb.save(); return sendJson(res, 400, { error: 'Убакыт бүттү, баштан баштаңыз (Время вышло, начните заново).' }); }
+
+  if (!body.image) return sendJson(res, 400, { error: 'Сүрөт жок (Нет снимка).' });
+
+  let result;
+  try {
+    result = await recognizeBill(body.image);
+  } catch (err) {
+    console.error('[deposit/scan-image] распозноо катасы:', err);
+    return sendJson(res, 500, { error: 'Таанып билүү системасында ката кетти (Ошибка системы распознавания). Кайра аракет кылыңыз.' });
+  }
+  if (!result.ok) return sendJson(res, 400, { error: result.error });
+
+  const { denomination: denom, serial, fingerprint, confidence } = result;
+
+  // Проверка на повтор: по серийному номеру (если распознался) и по
+  // отпечатку самой фотографии (форма + цвет) — во всей системе и в этой
+  // сессии. Это и есть ответ на "эгер ошол эле купюраны корсотсон, бул
+  // базада бар дегени болушу керек": сравниваем не ввод с клавиатуры, а
+  // саму картинку купюры.
+  if (serial && device.scannedSerials.some(s => s.serial === serial)) {
+    return sendJson(res, 400, { error: 'Бул купюра мурда эле скандалган (Эта купюра уже была отсканирована). Повторите попытку с другой купюрой.' });
+  }
+  if (serial && ds.notes.some(n => n.serial === serial)) {
+    return sendJson(res, 400, { error: 'Бул купюра учурдагы сессияда мурда скандалган (Эта купюра уже отсканирована в этой сессии).' });
+  }
+  const dupInSession = ds.notes.some(n => n.fingerprint && isSameBill(n.fingerprint, fingerprint));
+  const dupInSystem = !dupInSession && d.billImageHashes.some(n => isSameBill(n.fingerprint, fingerprint));
+  if (dupInSession || dupInSystem) {
+    return sendJson(res, 400, { error: 'Бул купюра мурда эле базада бар (Эта купюра уже есть в базе — уже вносилась ранее). Көрсөтүлгөн купюраны алып, башка купюраны көрсөтүңүз.' });
+  }
+
+  const scannedAt = new Date().toISOString();
+  const noteSerial = serial || null;
+  ds.notes.push({ serial: noteSerial, denom, fingerprint, confidence, scannedAt });
+  ds.total = money(ds.total + denom);
+  if (noteSerial) device.scannedSerials.push({ serial: noteSerial, denom, scannedAt });
+  d.billImageHashes.push({ fingerprint, serial: noteSerial, denom, deviceId: device.id, deviceCode: device.deviceCode, userId: ds.userId, scannedAt });
+  // Повторное сканирование продлевает таймер — как в реальном терминале, пока купюры принимаются
+  ds.expiresAt = Date.now() + DEPOSIT_SESSION_TTL_MS;
+  storeDb.save();
+  sendJson(res, 200, {
+    sessionId: ds.id, total: ds.total, notesCount: ds.notes.length, expiresAt: ds.expiresAt,
+    lastDenom: denom, serial: noteSerial, confidence
+  });
+});
+
 route('GET', '/api/device/deposit/status', async (req, res) => {
   const device = getDeviceAuthFromReq(req);
   if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
@@ -1897,6 +1963,8 @@ async function start() {
   purgeOldTestUsersOnce();
   ensureOwnerStaffAccount();
   ensureDemoDevices();
+
+  warmupOcr(); // прогреваем OCR-воркер в фоне, чтобы первое сканирование купюры не ждало инициализацию
 
   server.listen(PORT, () => {
     console.log(`ESA Bank сервери иштеп жатат: http://localhost:${PORT}`);

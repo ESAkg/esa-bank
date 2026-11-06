@@ -51,7 +51,8 @@ function emptyDb() {
     depositSessions: [], // {id, deviceId, userId, notes:[{serial,denom,scannedAt}], total, startedAt, expiresAt, status}
     deviceReceipts: [], // {id, deviceId, deviceCode, type, amount, denominations, userId, receiptNo, createdAt}
     applications: [],   // {id, type:'passport_kyc', passport fields + facePhoto, createdByStaffId, userId, createdAt}
-    withdrawRequests: [] // {id, deviceId, deviceCode, userId, amount, status:'pending'|'approved'|'rejected'|'expired', receipt?, newBalance?, error?, createdAt, expiresAt}
+    withdrawRequests: [], // {id, deviceId, deviceCode, userId, amount, status:'pending'|'approved'|'rejected'|'expired', receipt?, newBalance?, error?, createdAt, expiresAt}
+    billImageHashes: [] // {hash (64-bit dHash hex), serial, denom, deviceId, deviceCode, userId, scannedAt} — для распознавания повторного сканирования одной и той же купюры по фото (во всей системе, не только на одном устройстве)
   };
 }
 

@@ -186,16 +186,16 @@
         <span>Камера жеткиликсиз — сканерлөө симуляция режиминде иштейт</span>
       </div>
     </div>
-    <p id="scanner-status-text" class="scanner-status-text">Купюраны камерага көрсөтүп, номиналын төмөндөн тандаңыз</p>
-    <p class="bills-hint">Купюраны тандаңыз:</p>
-    <div class="bills-grid" id="deposit-bills-grid">
-      <button class="bill-btn" data-denom="50">50 сом</button>
-      <button class="bill-btn" data-denom="100">100 сом</button>
-      <button class="bill-btn" data-denom="200">200 сом</button>
-      <button class="bill-btn" data-denom="500">500 сом</button>
-      <button class="bill-btn" data-denom="1000">1000 сом</button>
-      <button class="bill-btn" data-denom="2000">2000 сом</button>
+    <p id="scanner-status-text" class="scanner-status-text">Купюраны камерага түз көрсөтүп, «Сканерлөө» баскычын басыңыз</p>
+    <div class="recognized-note-badge" id="recognized-note-badge" style="display:none;">
+      <span id="recognized-note-text"></span>
+      <span id="recognized-note-conf"></span>
     </div>
+    <canvas id="deposit-capture-canvas" style="display:none;"></canvas>
+    <button class="btn btn-primary btn-lg" id="scan-bill-btn" style="width:100%;">
+      <svg class="icon"><use href="#ic-camera"/></svg>
+      Сканерлөө
+    </button>
     <div class="field-error" id="deposit-scan-error"></div>
     <button class="btn btn-primary btn-lg" id="deposit-confirm-btn" style="width:100%;" disabled>Ырастоо жана эсепке кошуу</button>
   </section>

@@ -329,12 +329,23 @@
     note.style.display = 'none';
     video.style.display = 'block';
     try {
-      depositCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      // Жогорку чечимдүү сүрөт — OCR так номиналды жана сериялык номерди
+      // окуш үчүн маанилүү (аз пиксел = начар таанып билүү).
+      depositCameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      });
       video.srcObject = depositCameraStream;
+      $('#scan-bill-btn').disabled = false;
     } catch (e) {
-      // Камера жок же уруксат берилген жок — визуалсыз, бирок толук иштеген симуляция режимине өтөбүз
+      // Камера жок же уруксат берилген жок — чыныгы таанып билүү камера
+      // сүрөтү болбосо иштебейт, ошондуктан сканерлөөнү өчүрөбүз (жасалма
+      // симуляцияга чалынбайбыз).
       video.style.display = 'none';
       note.style.display = 'flex';
+      note.querySelector('span').textContent = 'Камерага уруксат жок — купюраны сканерлөө мүмкүн эмес. Браузердин камера уруксатын текшериңиз.';
+      $('#scan-bill-btn').disabled = true;
+      setScannerStatus('idle', '');
     }
   }
   function stopDepositCamera() {
@@ -345,6 +356,7 @@
   async function startDepositSession() {
     $('#deposit-scan-error').textContent = '';
     $('#deposit-confirm-btn').disabled = true;
+    $('#recognized-note-badge').style.display = 'none';
     try {
       const data = await api('POST', '/device/deposit/start');
       depositSessionId = data.sessionId;
@@ -397,47 +409,77 @@
   function hideScanFlash() {
     $('#scan-result-flash').className = 'scan-result-flash';
   }
-  function randomSerial() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
-    let s = '';
-    for (let i = 0; i < 9; i++) s += chars[Math.floor(Math.random() * chars.length)];
-    return s;
+  function showRecognizedBadge(denom, serial, confidence) {
+    const badge = $('#recognized-note-badge');
+    const textEl = $('#recognized-note-text');
+    const confEl = $('#recognized-note-conf');
+    textEl.textContent = `✓ ${denom.toLocaleString('ru-RU')} сом` + (serial ? ` · № ${serial}` : '');
+    textEl.className = 'amt';
+    if (confidence === 'low') {
+      confEl.textContent = 'Ишеним аз — текшериңиз';
+      confEl.className = 'conf-low';
+    } else {
+      confEl.textContent = '';
+    }
+    badge.style.display = 'flex';
   }
+
+  // Кадрды реалдуу камера видеосунан сүрөткө тартып, JPEG катары base64'ке
+  // айландырат — так ушул сүрөт серверге (чыныгы OCR/компьютердик көрүү
+  // таанып билүүгө) жиберилет. Эч кандай симуляция жок: эмне көрсөтсө,
+  // ошону алат жана ошону боюнча таанат.
+  function captureVideoFrame() {
+    const video = $('#deposit-camera-video');
+    if (!video || !video.videoWidth) return null;
+    const canvas = $('#deposit-capture-canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.92);
+  }
+
   let scanningNow = false;
-  $all('.bill-btn').forEach(btn => btn.addEventListener('click', async () => {
+  $('#scan-bill-btn').addEventListener('click', async () => {
     if (scanningNow) return;
+    const frame = captureVideoFrame();
+    if (!frame) {
+      $('#deposit-scan-error').textContent = 'Камера даяр эмес, бир аз күтүп кайра аракет кылыңыз (Камера не готова).';
+      return;
+    }
     scanningNow = true;
-    $all('.bill-btn').forEach(b => b.disabled = true);
+    $('#scan-bill-btn').disabled = true;
     $('#deposit-scan-error').textContent = '';
+    $('#recognized-note-badge').style.display = 'none';
     hideScanFlash();
-    // 1) Камера менен "сүрөткө тартуу" жана анализдөө симуляциясы (лазер сызык анимациясы)
+    // Реалдуу сүрөттү тартуу + талдоо анимациясы (лазер сызык), ал эми
+    // чыныгы таанып билүү өзү ушул учурда серверде OCR аркылуу жүрөт.
     setScannerStatus('scanning', 'Купюра камера менен тартылууда...');
-    await sleep(650);
-    setScannerStatus('scanning', 'Анализделүүдө...');
-    await sleep(700 + Math.random() * 500);
+    const minDwell = sleep(500);
     try {
-      const denom = Number(btn.dataset.denom);
-      const serial = randomSerial();
-      const data = await api('POST', '/device/deposit/scan', { sessionId: depositSessionId, denomination: denom, serial });
+      const data = await api('POST', '/device/deposit/scan-image', { sessionId: depositSessionId, image: frame });
+      await minDwell;
       renderDepositTotal(data.total);
       startDepositCountdown(data.expiresAt);
       setScannerStatus('ok', '');
-      showScanFlash('ok', `✓ Таанылды: ${denom} сом`);
-      await sleep(750);
+      showScanFlash('ok', `✓ Таанылды: ${data.lastDenom} сом`);
+      showRecognizedBadge(data.lastDenom, data.serial, data.confidence);
+      await sleep(700);
       hideScanFlash();
       setScannerStatus('idle', 'Дагы купюра көрсөтүңүз же ырастаңыз');
     } catch (err) {
+      await minDwell;
       setScannerStatus('err', '');
       showScanFlash('err', err.message || 'Купюра таанылган жок');
       $('#deposit-scan-error').textContent = err.message || 'Ката кетти';
       await sleep(900);
       hideScanFlash();
-      setScannerStatus('idle', 'Купюраны камерага көрсөтүп, номиналын тандаңыз');
+      setScannerStatus('idle', 'Купюраны камерага түз көрсөтүп, «Сканерлөө» баскычын басыңыз');
     } finally {
       scanningNow = false;
-      $all('.bill-btn').forEach(b => b.disabled = false);
+      $('#scan-bill-btn').disabled = false;
     }
-  }));
+  });
 
   $('#deposit-cancel-btn').addEventListener('click', async () => {
     clearInterval(depositTimerInterval);
