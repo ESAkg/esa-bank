@@ -868,6 +868,23 @@
     </div>
   </div>
 
+  <!-- ===================== ATM WITHDRAWAL CONFIRMATION (pushed from terminal) ===================== -->
+  <div class="modal-overlay" id="withdraw-request-modal">
+    <div class="modal-sheet" style="text-align:center;">
+      <div class="modal-handle"></div>
+      <div class="status-circle processing" style="margin:6px auto 14px;"><svg class="icon icon-lg"><use href="#ic-atm"/></svg></div>
+      <h3 data-i18n="withdraw_request_title">Банкоматтан акча алууну ырастаңыз</h3>
+      <div class="confirm-amount-big" id="wr-amount">0 сом</div>
+      <div class="confirm-summary">
+        <div class="confirm-row"><span data-i18n="device_label">Түзмөк</span><span id="wr-device"></span></div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="btn btn-secondary" id="withdraw-request-decline-btn" style="flex:1;" data-i18n="decline_btn">Четке кагуу</button>
+        <button class="btn btn-primary" id="withdraw-request-confirm-btn" style="flex:1;" data-i18n="confirm_btn">Ырастоо</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================== INTERNAL TRANSFER (wallet <-> card) ===================== -->
   <div class="modal-overlay" id="internal-transfer-modal">
     <div class="modal-sheet">

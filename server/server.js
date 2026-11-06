@@ -25,7 +25,8 @@ const STARTING_BALANCE = 0; // новый клиент начинает с пу�
 const OWNER_DISPLAY_BALANCE = 999999999; // счёт владельца — безлимитный, баланс не уменьшается
 const DEVICE_PAIR_TTL_MS = 3 * 60 * 1000; // 3 минуты на то, чтобы подойти к терминалу после сканирования
 const DEPOSIT_SESSION_TTL_MS = 60 * 1000; // 60 секунд на сканирование купюр в терминале
-const DEPOSIT_MIN_AMOUNT = 100000; // минимальная сумма пополнения через терминал (как описал владелец банка)
+const DEPOSIT_MIN_AMOUNT = 0; // минимум пополнения не ограничен — клиент вносит сколько хочет
+const WITHDRAW_REQUEST_TTL_MS = 90 * 1000; // 90 секунд клиенту на подтверждение снятия наличных в приложении
 
 // Карточные тарифы ESA Bank (вымышленные, для демо)
 const CARD_PLANS = {
@@ -1416,26 +1417,16 @@ function activeDeviceSession(device) {
   return d.deviceSessions.find(s => s.deviceId === device.id && s.active && s.expiresAt > Date.now());
 }
 
-// --- Снятие наличных через банкомат ---
-route('POST', '/api/device/withdraw', async (req, res) => {
-  const device = getDeviceAuthFromReq(req);
-  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
-  const session = activeDeviceSession(device);
-  if (!session) return sendJson(res, 400, { error: 'Кардар байланышкан эмес (Клиент не привязан к устройству).' });
-  const body = await readJsonBody(req);
-  const amount = money(body.amount);
-  if (!amount || amount <= 0) return sendJson(res, 400, { error: 'Сумманы туура киргизиңиз (Укажите корректную сумму).' });
-
-  const user = findUserById(session.userId);
-  const account = findAccountByUserId(session.userId);
-  if (!account.isOwner && account.balance < amount) {
-    return sendJson(res, 400, { error: 'Эсепте каражат жетишсиз (На счету недостаточно средств).' });
-  }
+// Фактическое исполнение выдачи наличных (вызывается только после того, как
+// клиент подтвердил операцию в мобильном приложении).
+function executeWithdraw(device, user, account, amount) {
   const breakdown = breakdownCash(device.cash, amount);
   if (!breakdown) {
-    return sendJson(res, 400, { error: 'Банкоматта бул сумманы берүү үчүн купюралар жок (У банкомата нет нужных купюр для этой суммы).' });
+    return { error: 'Банкоматта бул сумманы берүү үчүн купюралар жок (У банкомата нет нужных купюр для этой суммы).' };
   }
-
+  if (!account.isOwner && account.balance < amount) {
+    return { error: 'Эсепте каражат жетишсиз (На счету недостаточно средств).' };
+  }
   if (!account.isOwner) account.balance = money(account.balance - amount);
   Object.entries(breakdown).forEach(([denom, count]) => { device.cash[denom] -= count; });
 
@@ -1455,9 +1446,113 @@ route('POST', '/api/device/withdraw', async (req, res) => {
     receiptNo, createdAt: new Date().toISOString()
   };
   db().deviceReceipts.push(receipt);
-  storeDb.save();
+  return { receipt, newBalance: money(account.balance) };
+}
 
-  sendJson(res, 200, { ok: true, receipt, breakdown, newBalance: money(account.balance) });
+// --- Банкомат СУРАЙТ клиенттин телефонунан накталай акча алууга уруксат ---
+// (Акча дароо алынбайт — алгач кардар колдонмодон "Ырастоо" басышы керек.)
+route('POST', '/api/device/withdraw/request', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  const session = activeDeviceSession(device);
+  if (!session) return sendJson(res, 400, { error: 'Кардар байланышкан эмес (Клиент не привязан к устройству).' });
+  const body = await readJsonBody(req);
+  const amount = money(body.amount);
+  if (!amount || amount <= 0) return sendJson(res, 400, { error: 'Сумманы туура киргизиңиз (Укажите корректную сумму).' });
+
+  const user = findUserById(session.userId);
+  const account = findAccountByUserId(session.userId);
+  if (!account.isOwner && account.balance < amount) {
+    return sendJson(res, 400, { error: 'Эсепте каражат жетишсиз (На счету недостаточно средств).' });
+  }
+  if (!breakdownCash(device.cash, amount)) {
+    return sendJson(res, 400, { error: 'Банкоматта бул сумманы берүү үчүн купюралар жок (У банкомата нет нужных купюр для этой суммы).' });
+  }
+
+  const d = db();
+  // Эски күтүүдөгү суроо-талаптарды тазалайбыз (бир учурда бир гана активдүү суроо)
+  d.withdrawRequests.forEach(r => { if (r.deviceId === device.id && r.status === 'pending') r.status = 'expired'; });
+  const reqObj = {
+    id: newId(), deviceId: device.id, deviceCode: device.deviceCode, userId: user.id,
+    amount, status: 'pending', createdAt: new Date().toISOString(), expiresAt: Date.now() + WITHDRAW_REQUEST_TTL_MS
+  };
+  d.withdrawRequests.push(reqObj);
+  storeDb.save();
+  sendJson(res, 201, { requestId: reqObj.id, expiresAt: reqObj.expiresAt });
+});
+
+// --- Банкомат суроо-талаптын абалын сурайт (клиент колдонмодон жооп берди беле) ---
+route('GET', '/api/device/withdraw/status', async (req, res) => {
+  const device = getDeviceAuthFromReq(req);
+  if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
+  const requestId = new URL(req.url, 'http://x').searchParams.get('requestId');
+  const d = db();
+  const reqObj = d.withdrawRequests.find(r => r.id === requestId && r.deviceId === device.id);
+  if (!reqObj) return sendJson(res, 404, { error: 'Суроо-талап табылган жок (Запрос не найден).' });
+  if (reqObj.status === 'pending' && reqObj.expiresAt < Date.now()) { reqObj.status = 'expired'; storeDb.save(); }
+  sendJson(res, 200, {
+    status: reqObj.status, amount: reqObj.amount, expiresAt: reqObj.expiresAt,
+    receipt: reqObj.receipt || null, newBalance: reqObj.newBalance || null, error: reqObj.error || null
+  });
+});
+
+// --- Клиенттин колдонмосу: учурда ырастоону күтүп жаткан суроо-талап барбы? ---
+route('GET', '/api/withdraw-requests/pending', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const d = db();
+  const reqObj = d.withdrawRequests.find(r => r.userId === user.id && r.status === 'pending' && r.expiresAt > Date.now());
+  if (!reqObj) return sendJson(res, 200, { request: null });
+  const device = findDeviceById(reqObj.deviceId);
+  sendJson(res, 200, {
+    request: {
+      id: reqObj.id, amount: reqObj.amount, expiresAt: reqObj.expiresAt,
+      deviceLabel: device ? device.label : reqObj.deviceCode, deviceCode: reqObj.deviceCode
+    }
+  });
+});
+
+// --- Клиент колдонмодон "Ырастоо" же "Четке кагуу" басат ---
+route('POST', '/api/withdraw-requests/:id/respond', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const body = await readJsonBody(req);
+  const d = db();
+  const reqObj = d.withdrawRequests.find(r => r.id === params.id && r.userId === user.id);
+  if (!reqObj) return sendJson(res, 404, { error: 'Суроо-талап табылган жок (Запрос не найден).' });
+  if (reqObj.status !== 'pending') return sendJson(res, 400, { error: 'Бул суроо-талап мурда эле жооп алган (Этот запрос уже обработан).' });
+  if (reqObj.expiresAt < Date.now()) {
+    reqObj.status = 'expired';
+    storeDb.save();
+    return sendJson(res, 400, { error: 'Убакыт бүттү (Время истекло).' });
+  }
+
+  if (!body.approve) {
+    reqObj.status = 'rejected';
+    storeDb.save();
+    return sendJson(res, 200, { status: 'rejected' });
+  }
+
+  const device = findDeviceById(reqObj.deviceId);
+  const account = findAccountByUserId(user.id);
+  if (!device || !account) {
+    reqObj.status = 'rejected';
+    reqObj.error = 'Түзмөк же эсеп табылган жок (Устройство или счёт не найдены).';
+    storeDb.save();
+    return sendJson(res, 400, { error: reqObj.error });
+  }
+  const result = executeWithdraw(device, user, account, reqObj.amount);
+  if (result.error) {
+    reqObj.status = 'rejected';
+    reqObj.error = result.error;
+    storeDb.save();
+    return sendJson(res, 400, { error: result.error });
+  }
+  reqObj.status = 'approved';
+  reqObj.receipt = result.receipt;
+  reqObj.newBalance = result.newBalance;
+  storeDb.save();
+  sendJson(res, 200, { status: 'approved', newBalance: result.newBalance });
 });
 
 // --- Пополнение через терминал: старт сессии сканирования купюр (60 сек) ---
@@ -1541,8 +1636,8 @@ route('POST', '/api/device/deposit/confirm', async (req, res) => {
   const ds = d.depositSessions.find(s => s.id === body.sessionId && s.deviceId === device.id && s.status === 'active');
   if (!ds) return sendJson(res, 400, { error: 'Сессия табылган жок же аяктаган (Сессия не найдена или завершена).' });
   if (ds.expiresAt < Date.now()) { ds.status = 'expired'; storeDb.save(); return sendJson(res, 400, { error: 'Убакыт бүттү, баштан баштаңыз (Время вышло, начните заново).' }); }
-  if (ds.total < DEPOSIT_MIN_AMOUNT) {
-    return sendJson(res, 400, { error: `Минималдуу сумма — ${DEPOSIT_MIN_AMOUNT} сом (Минимальная сумма пополнения — ${DEPOSIT_MIN_AMOUNT} сом).` });
+  if (ds.total <= 0) {
+    return sendJson(res, 400, { error: 'Жок дегенде бир купюра салыңыз (Внесите хотя бы одну купюру).' });
   }
 
   const user = findUserById(ds.userId);

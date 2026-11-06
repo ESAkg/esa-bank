@@ -35,6 +35,7 @@
     <symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
     <symbol id="ic-camera" viewBox="0 0 24 24"><path d="M4 8h2.2l1.1-2h9.4l1.1 2H20a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.3" r="3.3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
     <symbol id="ic-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2.5-1.5L13 21l-1-1.5L10 21l-2.5-1.5L6 21V3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 8h6M9 11.5h6M9 15h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="ic-phone-confirm" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 11.5l2 2 3.5-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M10 18.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
   </defs>
 </svg>
 
@@ -132,6 +133,18 @@
     <button class="btn btn-primary btn-lg" id="withdraw-continue-btn" style="width:100%;">Улантуу</button>
   </section>
 
+  <!-- ===================== WITHDRAW: WAITING FOR PHONE CONFIRMATION ===================== -->
+  <section class="k-screen" id="k-screen-withdraw-waiting">
+    <div class="processing-wrap">
+      <svg class="icon-lg" style="color:var(--blue-400); width:54px; height:54px; margin-bottom:14px;"><use href="#ic-phone-confirm"/></svg>
+      <p style="font-size:16px; font-weight:700;">Телефонуңуздан ырастаңыз</p>
+      <p class="processing-sub" id="withdraw-waiting-amount">— сом</p>
+      <p class="processing-sub">ESA Bank тиркемесинде "Ырастоо" баскычын басыңыз</p>
+      <div class="deposit-timer" id="withdraw-waiting-timer" style="margin-top:18px;">90</div>
+      <button class="btn btn-secondary" id="withdraw-waiting-cancel-btn" style="margin-top:28px;">Жокко чыгаруу</button>
+    </div>
+  </section>
+
   <!-- ===================== WITHDRAW: PROCESSING ===================== -->
   <section class="k-screen" id="k-screen-withdraw-processing">
     <div class="processing-wrap">
@@ -161,7 +174,7 @@
     <div class="deposit-total-box">
       <div class="k">Жалпы сумма</div>
       <div class="v" id="deposit-total">0 сом</div>
-      <div class="deposit-min-hint" id="deposit-min-hint">Минималдуу сумма: 100 000 сом · Комиссия: 0 сом</div>
+      <div class="deposit-min-hint" id="deposit-min-hint">Комиссия: 0 сом</div>
     </div>
     <div class="scanner-camera-box" id="scanner-camera-box">
       <video id="deposit-camera-video" autoplay playsinline muted></video>

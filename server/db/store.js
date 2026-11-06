@@ -50,7 +50,8 @@ function emptyDb() {
     deviceSessions: [], // {id, deviceId, userId, pairedAt, active, expiresAt} — привязка телефона клиента к конкретному киоску
     depositSessions: [], // {id, deviceId, userId, notes:[{serial,denom,scannedAt}], total, startedAt, expiresAt, status}
     deviceReceipts: [], // {id, deviceId, deviceCode, type, amount, denominations, userId, receiptNo, createdAt}
-    applications: []    // {id, type:'passport_kyc', passport fields + facePhoto, createdByStaffId, userId, createdAt}
+    applications: [],   // {id, type:'passport_kyc', passport fields + facePhoto, createdByStaffId, userId, createdAt}
+    withdrawRequests: [] // {id, deviceId, deviceCode, userId, amount, status:'pending'|'approved'|'rejected'|'expired', receipt?, newBalance?, error?, createdAt, expiresAt}
   };
 }
 

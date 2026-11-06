@@ -2005,6 +2005,59 @@ document.getElementById('pinlock-use-password').addEventListener('click', (e) =>
 });
 
 // ======================================================
+// ATM WITHDRAWAL CONFIRMATION (push-style poll)
+// Банкомат акчаны дароо бербейт — ал сервердо "күтүүдө" деп суроо жаратат,
+// ал эми биз мында ошол суроону көрүп, колдонуучуга ырастоо/четке кагууну сунуштайбыз.
+// ======================================================
+let withdrawReqModalOpen = false;
+let currentWithdrawReq = null;
+async function pollPendingWithdrawRequests() {
+  if (!state.token || !state.user || withdrawReqModalOpen) return;
+  // PIN-кулпу экраны же логин экраны ачык болсо — тынчыраак болобуз
+  if (!document.body.classList.contains('app-shell')) return;
+  try {
+    const data = await api('GET', '/withdraw-requests/pending');
+    if (data.request) showWithdrawRequestModal(data.request);
+  } catch (_) { /* тынч өтүп кетебиз — бул фондук текшерүү */ }
+}
+let withdrawReqAutoCloseTimer = null;
+function showWithdrawRequestModal(reqInfo) {
+  currentWithdrawReq = reqInfo;
+  withdrawReqModalOpen = true;
+  document.getElementById('wr-amount').textContent = formatMoney(reqInfo.amount);
+  document.getElementById('wr-device').textContent = `${reqInfo.deviceLabel} (${reqInfo.deviceCode})`;
+  openModal('withdraw-request-modal');
+  clearTimeout(withdrawReqAutoCloseTimer);
+  const msLeft = Math.max(0, reqInfo.expiresAt - Date.now());
+  withdrawReqAutoCloseTimer = setTimeout(() => {
+    if (currentWithdrawReq && currentWithdrawReq.id === reqInfo.id) {
+      closeModal('withdraw-request-modal');
+      withdrawReqModalOpen = false;
+      currentWithdrawReq = null;
+      toast(t('withdraw_request_expired_toast'), 'error');
+    }
+  }, msLeft);
+}
+async function respondWithdrawRequest(approve) {
+  if (!currentWithdrawReq) return;
+  const id = currentWithdrawReq.id;
+  clearTimeout(withdrawReqAutoCloseTimer);
+  closeModal('withdraw-request-modal');
+  withdrawReqModalOpen = false;
+  currentWithdrawReq = null;
+  try {
+    await api('POST', `/withdraw-requests/${id}/respond`, { approve });
+    toast(t(approve ? 'withdraw_request_approved_toast' : 'withdraw_request_declined_toast'), approve ? 'success' : 'error');
+    if (approve && document.getElementById('screen-dashboard').classList.contains('active')) loadDashboard();
+  } catch (err) {
+    toast(err.message || t('err_generic'), 'error');
+  }
+}
+document.getElementById('withdraw-request-confirm-btn').addEventListener('click', () => respondWithdrawRequest(true));
+document.getElementById('withdraw-request-decline-btn').addEventListener('click', () => respondWithdrawRequest(false));
+setInterval(pollPendingWithdrawRequests, 3000);
+
+// ======================================================
 // INIT
 // ======================================================
 (async function init() {

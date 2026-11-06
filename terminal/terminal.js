@@ -27,10 +27,24 @@
     setTimeout(() => el.remove(), 3400);
   }
 
-  async function api(method, path, body) {
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  // Бекер (free-tier) хостингде сервер бир аз "уйкуда" болушу мүмкүн — ошондуктан
+  // тармак катасында же убактылуу 502/503/504'тө бир жолу кайра аракет кылабыз.
+  async function api(method, path, body, _retry) {
     const headers = { 'Content-Type': 'application/json' };
     if (DEVICE_TOKEN) headers['Authorization'] = 'Bearer ' + DEVICE_TOKEN;
-    const res = await fetch(API + path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+    let res;
+    try {
+      res = await fetch(API + path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+    } catch (netErr) {
+      if (!_retry) { await sleep(1200); return api(method, path, body, true); }
+      throw new Error('Сервер менен байланыш жок (Нет связи с сервером). Кайра аракет кылыңыз.');
+    }
+    if ([502, 503, 504].includes(res.status) && !_retry) {
+      await sleep(1500);
+      return api(method, path, body, true);
+    }
     let data = null;
     try { data = await res.json(); } catch (e) {}
     if (!res.ok) {
@@ -167,6 +181,9 @@
   async function endClientSession(auto) {
     clearTimeout(idleReturnTimer);
     clearInterval(depositTimerInterval);
+    clearInterval(withdrawPollTimer);
+    clearInterval(withdrawPollCountdown);
+    activeWithdrawRequestId = null;
     stopDepositCamera();
     try { await api('POST', '/device/session/end'); } catch (e) {}
     currentClient = null;
@@ -205,25 +222,81 @@
   }));
   $all('[data-k-back]').forEach(btn => btn.addEventListener('click', () => showScreen(btn.dataset.kBack)));
 
+  let withdrawPollTimer = null;
+  let withdrawPollCountdown = null;
+  let activeWithdrawRequestId = null;
+
   $('#withdraw-continue-btn').addEventListener('click', async () => {
     const amount = Number(withdrawAmountStr || '0');
     const errBox = $('#withdraw-amount-error');
     errBox.textContent = '';
     if (!amount || amount <= 0) { errBox.textContent = 'Сумманы киргизиңиз'; return; }
-    if (!currentClient.wallet.isOwner && amount > Number(String(currentClient.wallet.balance).replace(/\D/g, ''))) {
-      // soft client-side pre-check; server is authoritative
-    }
-    showScreen('k-screen-withdraw-processing');
-    await sleep(1700);
+    const btn = $('#withdraw-continue-btn');
+    btn.disabled = true;
     try {
-      const data = await api('POST', '/device/withdraw', { amount });
-      renderWithdrawReceipt(data.receipt);
-      currentClient.wallet.balance = data.newBalance;
-      showScreen('k-screen-withdraw-receipt');
+      const data = await api('POST', '/device/withdraw/request', { amount });
+      activeWithdrawRequestId = data.requestId;
+      $('#withdraw-waiting-amount').textContent = money(amount);
+      showScreen('k-screen-withdraw-waiting');
+      startWithdrawWaitingCountdown(data.expiresAt);
+      pollWithdrawStatus();
     } catch (err) {
-      showScreen('k-screen-withdraw-amount');
       errBox.textContent = err.message || 'Ката кетти';
+    } finally {
+      btn.disabled = false;
     }
+  });
+
+  function startWithdrawWaitingCountdown(expiresAt) {
+    clearInterval(withdrawPollCountdown);
+    function tick() {
+      const secLeft = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      const timerEl = $('#withdraw-waiting-timer');
+      timerEl.textContent = secLeft;
+      timerEl.classList.toggle('low', secLeft <= 15);
+    }
+    tick();
+    withdrawPollCountdown = setInterval(tick, 500);
+  }
+
+  function pollWithdrawStatus() {
+    clearInterval(withdrawPollTimer);
+    withdrawPollTimer = setInterval(async () => {
+      if (!activeWithdrawRequestId) return;
+      try {
+        const data = await api('GET', `/device/withdraw/status?requestId=${encodeURIComponent(activeWithdrawRequestId)}`);
+        if (data.status === 'approved') {
+          clearInterval(withdrawPollTimer);
+          clearInterval(withdrawPollCountdown);
+          activeWithdrawRequestId = null;
+          currentClient.wallet.balance = data.newBalance;
+          showScreen('k-screen-withdraw-processing');
+          await sleep(1200);
+          renderWithdrawReceipt(data.receipt);
+          showScreen('k-screen-withdraw-receipt');
+        } else if (data.status === 'rejected') {
+          clearInterval(withdrawPollTimer);
+          clearInterval(withdrawPollCountdown);
+          activeWithdrawRequestId = null;
+          showOverlay('Операция четке кагылды', data.error || 'Кардар телефонунан операцияны четке кагды.');
+          overlayNextAction = () => { showScreen('k-screen-menu'); };
+        } else if (data.status === 'expired') {
+          clearInterval(withdrawPollTimer);
+          clearInterval(withdrawPollCountdown);
+          activeWithdrawRequestId = null;
+          showOverlay('Убакыт бүттү', 'Ырастоо убактысы бүттү. Кайра аракет кылыңыз.');
+          overlayNextAction = () => { showScreen('k-screen-menu'); };
+        }
+        // 'pending' — күтө беребиз
+      } catch (e) { /* убактылуу ката — кийинки polling аракетинде кайталайбыз */ }
+    }, 1500);
+  }
+
+  $('#withdraw-waiting-cancel-btn').addEventListener('click', () => {
+    clearInterval(withdrawPollTimer);
+    clearInterval(withdrawPollCountdown);
+    activeWithdrawRequestId = null;
+    showScreen('k-screen-withdraw-amount');
   });
 
   function renderWithdrawReceipt(r) {
@@ -284,10 +357,8 @@
   }
   function renderDepositTotal(total) {
     $('#deposit-total').textContent = money(total);
-    $('#deposit-confirm-btn').disabled = total < 100000;
-    $('#deposit-confirm-btn').textContent = total < 100000
-      ? `Ырастоо (кеминде ${money(100000)} керек)`
-      : 'Ырастоо жана эсепке кошуу';
+    $('#deposit-confirm-btn').disabled = total <= 0;
+    $('#deposit-confirm-btn').textContent = 'Ырастоо жана эсепке кошуу';
   }
   function startDepositCountdown(expiresAt) {
     clearInterval(depositTimerInterval);
@@ -424,8 +495,6 @@
     $('#k-timeout-overlay').classList.remove('show');
     if (overlayNextAction) { const fn = overlayNextAction; overlayNextAction = null; fn(); }
   });
-
-  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   // ===================== INIT =====================
   tryAutoDeviceLogin();
