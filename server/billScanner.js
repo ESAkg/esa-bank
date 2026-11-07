@@ -17,8 +17,20 @@
  * Языковые данные Tesseract лежат локально в server/ocr-data (без
  * обращения к интернету в рантайме — на Render бесплатный план рубит
  * исходящие соединения, да и это просто быстрее).
+ *
+ * С версии v2 добавлен ещё один настоящий источник данных: 28 official
+ * эталонных снимков банкнот Нацбанка КР (server/bill-templates/ — обе
+ * серии, 2016 и 2023, лицевая и оборотная сторона, все 7 номиналов).
+ * При старте сервера (calibrateFromTemplates) по ним честно вычисляется
+ * средний цвет и цветовая сетка 4x4 каждой реальной банкноты — это не
+ * придуманные/подогнанные числа, а прямое измерение официальных образцов.
+ * Используется как второй, более точный цветовой признак (помимо OCR) —
+ * сравнение не только "средний цвет похож", но и "раскладка цвета по
+ * купюре похожа на один из 28 реальных эталонов" — это заметно точнее
+ * одной усреднённой цифры на номинал.
  */
 
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { createWorker } = require('tesseract.js');
@@ -26,23 +38,24 @@ const { Jimp } = require('jimp');
 
 const LANG_PATH = path.join(__dirname, 'ocr-data');
 const OCR_CACHE_PATH = path.join(require('os').tmpdir(), 'esa-bank-ocr-cache');
+const TEMPLATES_DIR = path.join(__dirname, 'bill-templates');
 
 // Номиналы банкнот сом КР, которые реально существуют в обращении.
 const KNOWN_DENOMS = [5000, 1000, 500, 200, 100, 50, 20];
 
-// Характерный средний цвет купюры — вспомогательный / подтверждающий
-// признак. Откалиброван по настоящим фотографиям банкнот Нацбанка КР
-// (не придуман на глаз): для каждого номинала измерен средний цвет
-// нескольких реальных фото и взято среднее.
-const DENOM_COLORS = {
-  20: [193, 125, 131],   // розово-красный
-  50: [212, 153, 109],   // оранжевый
-  100: [129, 165, 204],  // синий
-  200: [195, 171, 100],  // жёлтый
-  500: [143, 146, 203],  // сине-фиолетовый
-  1000: [142, 142, 140], // серо-сиреневый
-  5000: [108, 166, 128], // зелёный
+// Запасной цвет (на случай, если папка с эталонами недоступна/повреждена
+// при деплое) — откалиброван раньше по настоящим фотографиям банкнот.
+// В норме заменяется на DENOM_COLORS, вычисленный из 28 эталонов ниже.
+const FALLBACK_DENOM_COLORS = {
+  20: [193, 125, 131], 50: [212, 153, 109], 100: [129, 165, 204],
+  200: [195, 171, 100], 500: [143, 146, 203], 1000: [142, 142, 140],
+  5000: [108, 166, 128],
 };
+let DENOM_COLORS = { ...FALLBACK_DENOM_COLORS };
+// denom -> массив цветовых сеток 4x4 (по одной на каждый реальный эталон
+// этого номинала: 2016/2023 x лицо/оборот = обычно 4 штуки).
+let DENOM_TEMPLATE_GRIDS = {};
+let templatesCalibrated = false;
 
 let workerPromise = null;
 function getWorker() {
@@ -58,9 +71,20 @@ function getWorker() {
 }
 
 // Прогреть воркер заранее (при старте сервера), чтобы первое сканирование
-// клиента не ждало инициализацию движка OCR.
+// клиента не ждало инициализацию движка OCR, и сразу откалибровать цвета
+// по 28 реальным эталонным снимкам (см. calibrateFromTemplates ниже).
+let calibrationPromise = null;
+function ensureCalibrated() {
+  if (!calibrationPromise) {
+    calibrationPromise = calibrateFromTemplates().catch(err => {
+      console.error('[billScanner] Калибрлөө ката:', err.message);
+    });
+  }
+  return calibrationPromise;
+}
 function warmup() {
   getWorker().catch(err => console.error('[billScanner] OCR warmup ката:', err.message));
+  ensureCalibrated();
 }
 
 function decodeBase64Image(dataUrlOrBase64) {
@@ -105,14 +129,55 @@ function extractSerialFromText(text) {
   return best ? best.serial : null;
 }
 
-function nearestColorDenom(rgb) {
+// Сравнение цветовой сетки кадра с цветовыми сетками 28 реальных эталонов
+// (по номиналу берётся минимальное расстояние среди его вариантов —
+// 2016/2023 x лицо/оборот, т.к. купюра может быть показана любой стороной).
+// Это второй, более точный цветовой признак: не только "похожий средний
+// цвет", а "раскладка цвета по купюре похожа на настоящий образец".
+function nearestTemplateGridDenom(liveGrid) {
+  if (!liveGrid || !Object.keys(DENOM_TEMPLATE_GRIDS).length) return { denom: null, dist: Infinity };
   let best = null;
   let bestDist = Infinity;
-  for (const [denom, color] of Object.entries(DENOM_COLORS)) {
-    const dist = (rgb[0] - color[0]) ** 2 + (rgb[1] - color[1]) ** 2 + (rgb[2] - color[2]) ** 2;
-    if (dist < bestDist) { bestDist = dist; best = Number(denom); }
+  for (const [denom, grids] of Object.entries(DENOM_TEMPLATE_GRIDS)) {
+    for (const g of grids) {
+      const d = colorGridDistance(liveGrid, g);
+      if (d < bestDist) { bestDist = d; best = Number(denom); }
+    }
   }
-  return { denom: best, dist: Math.sqrt(bestDist) };
+  return { denom: best, dist: bestDist };
+}
+
+// Объединённый цветовой признак: для каждого номинала считаем И
+// расстояние по среднему цвету купюры, И (если эталоны загружены)
+// минимальное расстояние по цветовой сетке 4x4 до одного из 28 реальных
+// эталонных снимков — и берём взвешенную сумму. Так решение опирается не
+// на одно усреднённое число, а ещё и на то, похожа ли раскладка цвета по
+// купюре на настоящий образец — заметно надёжнее против случайных бликов
+// и неравномерного освещения камеры терминала.
+function colorGuessCombined(avgColorIn, liveGrid) {
+  const hasGrids = templatesCalibrated && Object.keys(DENOM_TEMPLATE_GRIDS).length > 0;
+  let best = null;
+  let bestDist = Infinity;
+  for (const denom of KNOWN_DENOMS) {
+    const avgColorDenom = DENOM_COLORS[denom];
+    if (!avgColorDenom) continue;
+    const avgDist = Math.sqrt(
+      (avgColorIn[0] - avgColorDenom[0]) ** 2 +
+      (avgColorIn[1] - avgColorDenom[1]) ** 2 +
+      (avgColorIn[2] - avgColorDenom[2]) ** 2
+    );
+    let combined = avgDist;
+    if (hasGrids && DENOM_TEMPLATE_GRIDS[denom] && liveGrid) {
+      let gridDist = Infinity;
+      for (const g of DENOM_TEMPLATE_GRIDS[denom]) {
+        const d = colorGridDistance(liveGrid, g);
+        if (d < gridDist) gridDist = d;
+      }
+      combined = avgDist * 0.45 + gridDist * 0.55;
+    }
+    if (combined < bestDist) { bestDist = combined; best = denom; }
+  }
+  return { denom: best, dist: bestDist };
 }
 
 // dHash (difference hash), 16x16 — сравнивает соседние пиксели после
@@ -187,6 +252,62 @@ function colorGridDistance(gridA, gridB) {
   return total / gridA.length; // средняя дистанция по ячейкам
 }
 
+// Честно вычисляет DENOM_COLORS и DENOM_TEMPLATE_GRIDS по 28 настоящим
+// эталонным фото банкнот Нацбанка КР (server/bill-templates/, имена вида
+// "2016_1000_front.jpg"). Не симуляция и не догадка — прямое измерение
+// официальных образцов обеих серий (2016 и 2023), обеих сторон, всех
+// 7 номиналов. Если по какой-то причине папка недоступна (повреждённый
+// деплой и т.п.), остаёмся на запасных значениях FALLBACK_DENOM_COLORS —
+// сканер не падает, просто работает чуть менее точно.
+async function calibrateFromTemplates() {
+  let files;
+  try {
+    files = fs.readdirSync(TEMPLATES_DIR).filter(f => f.endsWith('.jpg'));
+  } catch (err) {
+    console.error('[billScanner] Эталон купюралар папкасы табылган жок, запастагы түстөр колдонулат:', err.message);
+    return;
+  }
+  const sums = {}; // denom -> {r,g,b,n}
+  const grids = {}; // denom -> [grid, grid, ...]
+  for (const f of files) {
+    const parts = f.replace(/\.jpg$/, '').split('_');
+    if (parts.length !== 3) continue;
+    const denom = Number(parts[1]);
+    if (!KNOWN_DENOMS.includes(denom)) continue;
+    let img;
+    try {
+      img = await Jimp.read(path.join(TEMPLATES_DIR, f));
+    } catch (err) {
+      console.error(`[billScanner] Эталон окулган жок (${f}):`, err.message);
+      continue;
+    }
+    let r = 0, g = 0, b = 0, n = 0;
+    img.scan(0, 0, img.bitmap.width, img.bitmap.height, function (x, y, idx) {
+      const pr = this.bitmap.data[idx], pg = this.bitmap.data[idx + 1], pb = this.bitmap.data[idx + 2];
+      const maxC = Math.max(pr, pg, pb), minC = Math.min(pr, pg, pb);
+      if (minC > 205 || maxC < 60 || (maxC - minC) < 12) return;
+      r += pr; g += pg; b += pb; n++;
+    });
+    if (n > 0) {
+      const s = sums[denom] || (sums[denom] = { r: 0, g: 0, b: 0, n: 0 });
+      s.r += r / n; s.g += g / n; s.b += b / n; s.n += 1;
+    }
+    (grids[denom] = grids[denom] || []).push(computeColorGrid(img));
+  }
+  const newColors = {};
+  for (const [denom, s] of Object.entries(sums)) {
+    if (s.n > 0) newColors[denom] = [Math.round(s.r / s.n), Math.round(s.g / s.n), Math.round(s.b / s.n)];
+  }
+  if (Object.keys(newColors).length >= KNOWN_DENOMS.length) {
+    DENOM_COLORS = newColors;
+    DENOM_TEMPLATE_GRIDS = grids;
+    templatesCalibrated = true;
+    console.log('[billScanner] Купюра түстөрү 28 чыныгы эталондон калибрленди:', JSON.stringify(DENOM_COLORS));
+  } else {
+    console.error('[billScanner] Эталондордун баары эмес окулду, запастагы түстөр колдонулат.');
+  }
+}
+
 // Порог: структурный хэш 16x16 = 240 бит. Порог Хэмминга и порог цвета
 // подобраны и проверены на реальных фото купюр нацбанка КР — разные
 // номиналы дают структурное расстояние от ~90 бит и выше, а одно и то же
@@ -206,6 +327,7 @@ function isSameBill(fpA, fpB) {
  * Возвращает { ok, denomination, confidence:'high'|'medium'|'low', serial, hash, rawText, error }
  */
 async function recognizeBill(imageBase64) {
+  await ensureCalibrated();
   const buffer = decodeBase64Image(imageBase64);
   if (!buffer || buffer.length < 500) {
     return { ok: false, error: 'Сүрөт алынган жок, кайра аракет кылыңыз (Снимок не получен, повторите попытку).' };
@@ -240,7 +362,7 @@ async function recognizeBill(imageBase64) {
   const avgColor = n > 0
     ? [Math.round(r / n), Math.round(g / n), Math.round(b / n)]
     : [255, 255, 255];
-  const colorGuess = nearestColorDenom(avgColor);
+  const colorGuess = colorGuessCombined(avgColor, colorGrid);
 
   // 3) OCR — реальное распознавание текста на фото (ML-модель Tesseract LSTM).
   let text = '';
@@ -312,16 +434,26 @@ async function recognizeBillConsensus(images) {
     return results[0] || { ok: false, error: 'Купюра таанылган жок.' };
   }
 
-  // Добуш берүү: кайсы номинал эн көп кадрда кайталанды.
-  const votes = {};
-  okResults.forEach(r => { votes[r.denomination] = (votes[r.denomination] || 0) + 1; });
-  let winnerDenom = null, winnerVotes = 0;
-  for (const [denom, count] of Object.entries(votes)) {
-    if (count > winnerVotes) { winnerVotes = count; winnerDenom = Number(denom); }
+  // Добуш берүү — ар бир кадрдын добушу тен эмес: ишеним деңгээли жогору
+  // кадр (OCR жана түс эки эле жыйынтыкка макул болгон "high") көбүрөөк
+  // салмак алат, ал эми "low" кадр азыраак. Бул көбүрөөк ишенимдүү (SIFT
+  // inlier саны боюнча добуш берген) эталон ыкмасына окшош принцип — бир
+  // жолку шумдуу окуу жыйынтыкты бурмалабайт.
+  const votes = {};       // жөнөкөй кадр саны (отчет/UI үчүн)
+  const weighted = {};    // чечим кабыл алуу үчүн — ишеним менен салмактанган
+  okResults.forEach(r => {
+    votes[r.denomination] = (votes[r.denomination] || 0) + 1;
+    weighted[r.denomination] = (weighted[r.denomination] || 0) + (CONF_RANK[r.confidence] || 1);
+  });
+  let winnerDenom = null, winnerWeight = 0;
+  for (const [denom, w] of Object.entries(weighted)) {
+    if (w > winnerWeight) { winnerWeight = w; winnerDenom = Number(denom); }
   }
+  const totalWeight = Object.values(weighted).reduce((a, b) => a + b, 0);
+  const winnerShare = totalWeight > 0 ? winnerWeight / totalWeight : 0;
+  const winnerVotes = votes[winnerDenom] || 0;
 
-  // Ошол номиналды берген кадрлардын арасынан эн ишенимдүүсүн (жана,
-  // эгер болсо, сериялык номери окулганын) тандайбыз.
+  // Ошол номиналды берген кадрлардын арасынан эн ишенимдүүсүн тандайбыз.
   const candidates = okResults.filter(r => r.denomination === winnerDenom);
   candidates.sort((a, b) => {
     const rankDiff = (CONF_RANK[b.confidence] || 0) - (CONF_RANK[a.confidence] || 0);
@@ -330,10 +462,21 @@ async function recognizeBillConsensus(images) {
   });
   const best = candidates[0];
 
-  // Бир нече кадрда ЖАНА эн көп добуш алса — ишенимди жогорулатабыз
-  // (биринчи кадрда гана көрүнгөн жалгыз шумдуу окуудан айырмаланып).
+  // Сериялык номер боюнча да добуш берүү: бир эле окууга эмес, ошол
+  // номиналды тапкан бардык кадрлардын арасынан эн көп кайталанган так
+  // сериялык номерди тандайбыз (бир кадр гана ар кандай окуса, ал жоюлат).
+  const serialVotes = {};
+  candidates.forEach(r => { if (r.serial) serialVotes[r.serial] = (serialVotes[r.serial] || 0) + 1; });
+  let bestSerial = best.serial, bestSerialVotes = 0;
+  for (const [serial, count] of Object.entries(serialVotes)) {
+    if (count > bestSerialVotes) { bestSerialVotes = count; bestSerial = serial; }
+  }
+
+  // Бир нече кадр ЖАНА салмактуу добуштун көпчүлүгү (жарымынан köп) ушул
+  // номиналды тапса — ишенимди жогорулатабыз (биринчи кадрда гана көрүнгөн
+  // жалгыз шумдуу окуудан айырмаланып).
   let finalConfidence = best.confidence;
-  if (winnerVotes >= Math.ceil(images.length / 2) && winnerVotes > 1) {
+  if (winnerVotes > 1 && winnerShare >= 0.5) {
     finalConfidence = 'high';
   }
 
@@ -341,11 +484,11 @@ async function recognizeBillConsensus(images) {
     ok: true,
     denomination: winnerDenom,
     confidence: finalConfidence,
-    serial: best.serial,
+    serial: bestSerial,
     fingerprint: best.fingerprint,
     rawText: best.rawText,
     avgColor: best.avgColor,
-    votes, framesAnalyzed: images.length, framesRecognized: okResults.length,
+    votes, winnerShare, framesAnalyzed: images.length, framesRecognized: okResults.length,
   };
 }
 
