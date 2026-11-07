@@ -291,4 +291,62 @@ async function recognizeBill(imageBase64) {
   return { ok: true, denomination, confidence, serial, fingerprint, rawText: text, avgColor };
 }
 
-module.exports = { recognizeBill, warmup, isSameBill, KNOWN_DENOMS };
+const CONF_RANK = { high: 3, medium: 2, low: 1 };
+
+/**
+ * "Окутуу" режими: номинал купюрада так жазылгандыктан, бир эле кадрга
+ * ишенбей, бирден ашык кадрды (бир нече ирет сканерлөө) өз-өзүнчө талдап,
+ * жыйынтыктарды САЛЫШТЫРАТ — эн көп кайталанган (же эн ишенимдүү) вариантты
+ * тандап, акыркы так жоопту чыгарат. Бул колдонуучунун так суранычы:
+ * "кайра-кайра сканер кылып, варианттарды анализ кылып, эн туура
+ * вариантты тандап чыгарып берсин".
+ *
+ * images — бир нече base64 сүрөт (бир эле купюрадан бир нече кадр).
+ */
+async function recognizeBillConsensus(images) {
+  const results = await Promise.all(images.map(img => recognizeBill(img).catch(err => ({ ok: false, error: err.message }))));
+  const okResults = results.filter(r => r.ok);
+
+  if (!okResults.length) {
+    // Эч бир кадр таанылган жок — биринчи катаны кайтарабыз.
+    return results[0] || { ok: false, error: 'Купюра таанылган жок.' };
+  }
+
+  // Добуш берүү: кайсы номинал эн көп кадрда кайталанды.
+  const votes = {};
+  okResults.forEach(r => { votes[r.denomination] = (votes[r.denomination] || 0) + 1; });
+  let winnerDenom = null, winnerVotes = 0;
+  for (const [denom, count] of Object.entries(votes)) {
+    if (count > winnerVotes) { winnerVotes = count; winnerDenom = Number(denom); }
+  }
+
+  // Ошол номиналды берген кадрлардын арасынан эн ишенимдүүсүн (жана,
+  // эгер болсо, сериялык номери окулганын) тандайбыз.
+  const candidates = okResults.filter(r => r.denomination === winnerDenom);
+  candidates.sort((a, b) => {
+    const rankDiff = (CONF_RANK[b.confidence] || 0) - (CONF_RANK[a.confidence] || 0);
+    if (rankDiff !== 0) return rankDiff;
+    return (b.serial ? 1 : 0) - (a.serial ? 1 : 0);
+  });
+  const best = candidates[0];
+
+  // Бир нече кадрда ЖАНА эн көп добуш алса — ишенимди жогорулатабыз
+  // (биринчи кадрда гана көрүнгөн жалгыз шумдуу окуудан айырмаланып).
+  let finalConfidence = best.confidence;
+  if (winnerVotes >= Math.ceil(images.length / 2) && winnerVotes > 1) {
+    finalConfidence = 'high';
+  }
+
+  return {
+    ok: true,
+    denomination: winnerDenom,
+    confidence: finalConfidence,
+    serial: best.serial,
+    fingerprint: best.fingerprint,
+    rawText: best.rawText,
+    avgColor: best.avgColor,
+    votes, framesAnalyzed: images.length, framesRecognized: okResults.length,
+  };
+}
+
+module.exports = { recognizeBill, recognizeBillConsensus, warmup, isSameBill, KNOWN_DENOMS };

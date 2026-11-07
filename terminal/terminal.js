@@ -320,6 +320,7 @@
     `;
   }
   $('#withdraw-done-btn').addEventListener('click', () => { endClientSession(false); });
+  $('#withdraw-another-op-btn').addEventListener('click', () => { enterMenu(); });
 
   // ===================== DEPOSIT: SCAN =====================
   let depositCameraStream = null;
@@ -439,11 +440,26 @@
     return canvas.toDataURL('image/jpeg', 0.92);
   }
 
+  // Бир кадрга ишенбей, бир нече кадрды (аз-аздан убакыт аралыгы менен)
+  // тартып, ар бирин талдатып, эн көп кайталанган/эн ишенимдүү жыйынтыкты
+  // тандайбыз — "кайра-кайра сканерлеп, туура вариантты чыгаруу" деген
+  // талапка жооп ушул.
+  const SCAN_FRAME_COUNT = 4;
+  const SCAN_FRAME_GAP_MS = 220;
+  async function captureMultipleFrames() {
+    const frames = [];
+    for (let i = 0; i < SCAN_FRAME_COUNT; i++) {
+      const f = captureVideoFrame();
+      if (f) frames.push(f);
+      if (i < SCAN_FRAME_COUNT - 1) await sleep(SCAN_FRAME_GAP_MS);
+    }
+    return frames;
+  }
+
   let scanningNow = false;
   $('#scan-bill-btn').addEventListener('click', async () => {
     if (scanningNow) return;
-    const frame = captureVideoFrame();
-    if (!frame) {
+    if (!captureVideoFrame()) {
       $('#deposit-scan-error').textContent = 'Камера даяр эмес, бир аз күтүп кайра аракет кылыңыз (Камера не готова).';
       return;
     }
@@ -452,12 +468,15 @@
     $('#deposit-scan-error').textContent = '';
     $('#recognized-note-badge').style.display = 'none';
     hideScanFlash();
-    // Реалдуу сүрөттү тартуу + талдоо анимациясы (лазер сызык), ал эми
-    // чыныгы таанып билүү өзү ушул учурда серверде OCR аркылуу жүрөт.
-    setScannerStatus('scanning', 'Купюра камера менен тартылууда...');
-    const minDwell = sleep(500);
+    // Реалдуу бир нече кадрды тартуу + талдоо анимациясы (лазер сызык),
+    // ал эми чыныгы таанып билүү (OCR + түс анализи, добуш берүү менен)
+    // серверде ушул учурда жүрөт.
+    setScannerStatus('scanning', 'Купюра бир нече ирет тартылууда...');
+    const frames = await captureMultipleFrames();
+    setScannerStatus('scanning', 'Варианттар талдалууда...');
+    const minDwell = sleep(400);
     try {
-      const data = await api('POST', '/device/deposit/scan-image', { sessionId: depositSessionId, image: frame });
+      const data = await api('POST', '/device/deposit/scan-image', { sessionId: depositSessionId, images: frames });
       await minDwell;
       renderDepositTotal(data.total);
       startDepositCountdown(data.expiresAt);
@@ -525,6 +544,7 @@
     `;
   }
   $('#deposit-done-btn').addEventListener('click', () => { endClientSession(false); });
+  $('#deposit-another-op-btn').addEventListener('click', () => { enterMenu(); });
 
   // ===================== OVERLAY =====================
   let overlayNextAction = null;

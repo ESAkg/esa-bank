@@ -52,7 +52,8 @@ function emptyDb() {
     deviceReceipts: [], // {id, deviceId, deviceCode, type, amount, denominations, userId, receiptNo, createdAt}
     applications: [],   // {id, type:'passport_kyc', passport fields + facePhoto, createdByStaffId, userId, createdAt}
     withdrawRequests: [], // {id, deviceId, deviceCode, userId, amount, status:'pending'|'approved'|'rejected'|'expired', receipt?, newBalance?, error?, createdAt, expiresAt}
-    billImageHashes: [] // {hash (64-bit dHash hex), serial, denom, deviceId, deviceCode, userId, scannedAt} — для распознавания повторного сканирования одной и той же купюры по фото (во всей системе, не только на одном устройстве)
+    billImageHashes: [], // {hash (64-bit dHash hex), serial, denom, deviceId, deviceCode, userId, scannedAt} — для распознавания повторного сканирования одной и той же купюры по фото (во всей системе, не только на одном устройстве)
+    notifications: [] // {id, userId, type, title, body, data, read, createdAt} — реалдуу билдирмелер (колокольчик), ойдон чыгарылган эмес: акыркы учурлардын негизинде түзүлөт (которуу келди, терминалдан толукталды, банкоматтан алуу талабы/жыйынтыгы)
   };
 }
 

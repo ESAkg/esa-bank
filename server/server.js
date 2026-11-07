@@ -17,7 +17,7 @@ const {
   normalizePhone, formatPhone, genAccountNumber, genReceiptNo, money,
   genCardNumberSimple, genCvv, cardExpiry, maskCardNumber, genDeviceCode
 } = require('./lib/helpers');
-const { recognizeBill, warmup: warmupOcr, isSameBill } = require('./billScanner');
+const { recognizeBill, recognizeBillConsensus, warmup: warmupOcr, isSameBill } = require('./billScanner');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 дней
@@ -139,6 +139,19 @@ const DENYLIST_PREFIXES = ['server', '.git', 'node_modules', '.env'];
 // ---------- Вспомогательные функции работы с БД ----------
 
 function db() { return storeDb.get(); }
+
+// Чыныгы билдирмелер (колокольчик) — ойдон чыгарылбайт, так чыныгы окуялар
+// болгондо гана түзүлөт: акча келгенде, терминалдан толукталганда,
+// банкоматтан акча алуу талап кылынганда/жыйынтыкталганда.
+function addNotification(userId, type, title, body, data) {
+  if (!userId) return;
+  const notif = {
+    id: newId(), userId, type, title, body, data: data || null,
+    read: false, createdAt: new Date().toISOString()
+  };
+  db().notifications.push(notif);
+  return notif;
+}
 
 function findUserByPhone(phone) {
   return db().users.find(u => u.phone === phone);
@@ -823,6 +836,12 @@ function executeTransfer({ fromAccount, toAccount, fromUser, toUser, amount, met
     createdAt: new Date().toISOString()
   };
   db().transactions.push(tx);
+  if (!toAccount.isOwner) {
+    addNotification(toUser.id, 'transfer_in',
+      'Которуу келди (Поступил перевод)',
+      `${fromUser.fullName}: +${amount.toLocaleString('ru-RU')} сом`,
+      { receiptNo: tx.receiptNo, amount, fromName: fromUser.fullName });
+  }
   storeDb.save();
 
   return {
@@ -1480,6 +1499,10 @@ route('POST', '/api/device/withdraw/request', async (req, res) => {
     amount, status: 'pending', createdAt: new Date().toISOString(), expiresAt: Date.now() + WITHDRAW_REQUEST_TTL_MS
   };
   d.withdrawRequests.push(reqObj);
+  addNotification(user.id, 'withdraw_request',
+    'Банкоматтан акча алууну ырастаңыз (Подтвердите снятие наличных)',
+    `${device.label}: ${amount.toLocaleString('ru-RU')} сом`,
+    { requestId: reqObj.id, amount, deviceLabel: device.label, expiresAt: reqObj.expiresAt });
   storeDb.save();
   sendJson(res, 201, { requestId: reqObj.id, expiresAt: reqObj.expiresAt });
 });
@@ -1497,6 +1520,34 @@ route('GET', '/api/device/withdraw/status', async (req, res) => {
     status: reqObj.status, amount: reqObj.amount, expiresAt: reqObj.expiresAt,
     receipt: reqObj.receipt || null, newBalance: reqObj.newBalance || null, error: reqObj.error || null
   });
+});
+
+// --- Колокольчик: колдонуучунун чыныгы билдирмелери (акыркы 50) ---
+route('GET', '/api/notifications', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const list = db().notifications
+    .filter(n => n.userId === user.id)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 50);
+  const unreadCount = list.filter(n => !n.read).length;
+  sendJson(res, 200, { notifications: list, unreadCount });
+});
+
+route('POST', '/api/notifications/:id/read', async (req, res, params) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  const n = db().notifications.find(x => x.id === params.id && x.userId === user.id);
+  if (n) { n.read = true; storeDb.save(); }
+  sendJson(res, 200, { ok: true });
+});
+
+route('POST', '/api/notifications/read-all', async (req, res) => {
+  const user = getAuthUser(req);
+  if (!user) return sendJson(res, 401, { error: 'Сессия аяктады (Сессия истекла).' });
+  db().notifications.forEach(n => { if (n.userId === user.id) n.read = true; });
+  storeDb.save();
+  sendJson(res, 200, { ok: true });
 });
 
 // --- Клиенттин колдонмосу: учурда ырастоону күтүп жаткан суроо-талап барбы? ---
@@ -1620,7 +1671,7 @@ route('POST', '/api/device/deposit/scan-image', async (req, res) => {
   const device = getDeviceAuthFromReq(req);
   if (!device) return sendJson(res, 401, { error: 'Киоск сессиясы аяктады (Сессия киоска истекла).' });
   let body;
-  try { body = await readJsonBody(req, 8e6); }
+  try { body = await readJsonBody(req, 30e6); } // бир нече кадр (consensus) бир запросто келет
   catch (err) { return sendJson(res, 413, { error: 'Сүрөт өтө чоң (Снимок слишком большой), кайра аракет кылыңыз.' }); }
 
   const d = db();
@@ -1628,11 +1679,16 @@ route('POST', '/api/device/deposit/scan-image', async (req, res) => {
   if (!ds) return sendJson(res, 400, { error: 'Сессиянын мөөнөтү өттү (Сессия сканирования истекла).' });
   if (ds.expiresAt < Date.now()) { ds.status = 'expired'; storeDb.save(); return sendJson(res, 400, { error: 'Убакыт бүттү, баштан баштаңыз (Время вышло, начните заново).' }); }
 
-  if (!body.image) return sendJson(res, 400, { error: 'Сүрөт жок (Нет снимка).' });
+  // Бир нече кадр жиберилсе (images) — "кайра-кайра сканерлеп, эн туура
+  // вариантты тандоо" режими: ар бир кадр өзүнчө талданат да, добуш
+  // берүү менен эн ишенимдүү жыйынтык тандалат. Бир кадр (image) болсо —
+  // ал калыбындай эле иштейт (артка карай шайкеш).
+  const images = Array.isArray(body.images) && body.images.length ? body.images : (body.image ? [body.image] : null);
+  if (!images) return sendJson(res, 400, { error: 'Сүрөт жок (Нет снимка).' });
 
   let result;
   try {
-    result = await recognizeBill(body.image);
+    result = images.length > 1 ? await recognizeBillConsensus(images) : await recognizeBill(images[0]);
   } catch (err) {
     console.error('[deposit/scan-image] распозноо катасы:', err);
     return sendJson(res, 500, { error: 'Таанып билүү системасында ката кетти (Ошибка системы распознавания). Кайра аракет кылыңыз.' });
@@ -1730,6 +1786,10 @@ route('POST', '/api/device/deposit/confirm', async (req, res) => {
     receiptNo, createdAt: new Date().toISOString()
   };
   db().deviceReceipts.push(receipt);
+  addNotification(user.id, 'deposit_done',
+    'Эсеп толукталды (Счёт пополнен)',
+    `${device.label}: +${ds.total.toLocaleString('ru-RU')} сом`,
+    { receiptNo, amount: ds.total });
   storeDb.save();
   sendJson(res, 200, { ok: true, receipt, newBalance: money(account.balance) });
 });

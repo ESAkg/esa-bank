@@ -690,6 +690,39 @@ select.cat-select {
 .share-disclaimer { font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 10px; line-height: 1.4; }
 
 /* ======================================================
+   Notifications (bell)
+   ====================================================== */
+.notif-bell-btn { position: relative; }
+.notif-badge {
+  position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px;
+  background: #e8112d; color: #fff; font-size: 10px; font-weight: 800; line-height: 16px;
+  border-radius: 999px; text-align: center; box-shadow: 0 0 0 2px var(--navy-900, #0a1f3d);
+}
+.link-btn {
+  background: none; border: none; color: var(--blue-400); font-size: 12.5px;
+  font-weight: 600; cursor: pointer; padding: 4px 0;
+}
+.notif-sheet-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.notif-sheet-header h3 { margin: 0; }
+.notif-list { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
+.notif-empty { text-align: center; color: var(--text-dim); font-size: 13px; padding: 30px 10px; }
+.notif-item {
+  display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px;
+  background: var(--card-bg-2); border: 1px solid var(--border-subtle);
+}
+.notif-item.unread { background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); }
+.notif-item .ni-icon {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--navy-700);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-light);
+}
+.notif-item .ni-icon svg { width: 17px; height: 17px; }
+.notif-item .ni-body { flex: 1; min-width: 0; }
+.notif-item .ni-title { font-size: 13px; font-weight: 700; margin: 0 0 2px; color: var(--text-light); }
+.notif-item .ni-text { font-size: 12.5px; color: var(--text-dim); margin: 0; }
+.notif-item .ni-time { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+.notif-item.unread .ni-title::before { content: '\25CF'; color: var(--blue-400); font-size: 8px; margin-right: 5px; vertical-align: middle; }
+
+/* ======================================================
    Settings screen
    ====================================================== */
 .settings-group { background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); margin-bottom: 14px; overflow: hidden; }

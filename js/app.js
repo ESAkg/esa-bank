@@ -94,14 +94,27 @@ document.addEventListener('click', (e) => {
 });
 
 // ---------- API helper ----------
-async function api(method, path, body, auth = true) {
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+async function api(method, path, body, auth = true, _retry) {
   const headers = { 'Content-Type': 'application/json' };
   if (auth && state.token) headers['Authorization'] = 'Bearer ' + state.token;
-  const res = await fetch(API + path, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined
-  });
+  let res;
+  try {
+    res = await fetch(API + path, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+  } catch (networkErr) {
+    // Тармак үзүлүшү (Render бекер тарифте "уйкудан ойгонот" учурунда
+    // болот) — бир жолу кайра аракет кылабыз, андан кийин гана катаны чыгарабыз.
+    if (!_retry) { await sleep(900); return api(method, path, body, auth, true); }
+    throw new Error(t('err_generic'));
+  }
+  if (!_retry && (res.status === 502 || res.status === 503 || res.status === 504)) {
+    await sleep(900);
+    return api(method, path, body, auth, true);
+  }
   let data;
   try { data = await res.json(); } catch (_) { data = {}; }
   if (!res.ok) {
@@ -1780,7 +1793,19 @@ async function triggerInstall() {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      // Жаңы версия даяр болору менен колдонуучу чыныгы акыркы кодду алсын
+      // деп барактарды бир жолу кайра жүктөйбүз (эски кэштелген app.js
+      // менен иштеп калбашы үчүн — так ушундан улам кээ бир жаңы
+      // функциялар мурда колдонуучуларда иштебей жаткан).
+      reg.update().catch(() => {});
+    }).catch(() => {});
+  });
+  let swReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swReloaded) return;
+    swReloaded = true;
+    window.location.reload();
   });
 }
 
@@ -2056,6 +2081,113 @@ async function respondWithdrawRequest(approve) {
 document.getElementById('withdraw-request-confirm-btn').addEventListener('click', () => respondWithdrawRequest(true));
 document.getElementById('withdraw-request-decline-btn').addEventListener('click', () => respondWithdrawRequest(false));
 setInterval(pollPendingWithdrawRequests, 3000);
+// Телефон экраны өчүп/кайра күйгөндө же колдонмо фондон кайтып келгенде
+// браузер setInterval'ди басаңдатат же токтотот — ошондуктан барак кайра
+// көрүнүктүү болор замат дароо текшеребиз, 3 секунд күтпөй туруп.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') pollPendingWithdrawRequests();
+});
+
+// ======================================================
+// БИЛДИРМЕЛЕР (колокольчик) — чыныгы окуялар: которуу келди, терминалдан
+// толукталды, банкоматтан акча алуу талабы. Имитация эмес: серверде
+// болгон окуя гана бул жерде пайда болот (server.js, addNotification()).
+// ======================================================
+const NOTIF_ICONS = {
+  transfer_in: 'ic-swap',
+  deposit_done: 'ic-wallet',
+  withdraw_request: 'ic-atm',
+};
+let seenNotifIds = new Set(JSON.parse(localStorage.getItem('esa_seen_notif_ids') || '[]'));
+function rememberSeenNotif(id) {
+  seenNotifIds.add(id);
+  if (seenNotifIds.size > 200) seenNotifIds = new Set([...seenNotifIds].slice(-200));
+  localStorage.setItem('esa_seen_notif_ids', JSON.stringify([...seenNotifIds]));
+}
+function renderNotifBadge(count) {
+  const badge = document.getElementById('notif-badge');
+  if (!badge) return;
+  if (count > 0) { badge.textContent = count > 9 ? '9+' : String(count); badge.style.display = 'flex'; }
+  else { badge.style.display = 'none'; }
+}
+function timeAgoLabel(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return 'азыр эле';
+  if (min < 60) return `${min} мүн мурун`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} саат мурун`;
+  return new Date(iso).toLocaleDateString('ru-RU');
+}
+function renderNotifList(notifications) {
+  const listEl = document.getElementById('notif-list');
+  const emptyEl = document.getElementById('notif-empty');
+  listEl.querySelectorAll('.notif-item').forEach(el => el.remove());
+  if (!notifications.length) { emptyEl.style.display = 'block'; return; }
+  emptyEl.style.display = 'none';
+  notifications.forEach(n => {
+    const item = document.createElement('div');
+    item.className = 'notif-item' + (n.read ? '' : ' unread');
+    item.innerHTML = `
+      <div class="ni-icon"><svg class="icon"><use href="#${NOTIF_ICONS[n.type] || 'ic-bell'}"/></svg></div>
+      <div class="ni-body">
+        <p class="ni-title"></p>
+        <p class="ni-text"></p>
+        <p class="ni-time"></p>
+      </div>`;
+    item.querySelector('.ni-title').textContent = n.title;
+    item.querySelector('.ni-text').textContent = n.body;
+    item.querySelector('.ni-time').textContent = timeAgoLabel(n.createdAt);
+    if (!n.read) {
+      item.addEventListener('click', async () => {
+        item.classList.remove('unread');
+        try { await api('POST', `/notifications/${n.id}/read`); } catch (_) {}
+        pollNotifications();
+      }, { once: true });
+    }
+    listEl.appendChild(item);
+  });
+}
+async function pollNotifications() {
+  if (!state.token || !state.user || !document.body.classList.contains('app-shell')) return;
+  try {
+    const data = await api('GET', '/notifications');
+    renderNotifBadge(data.unreadCount);
+    // Жаңы, мурда көрүнбөгөн билдирмелер үчүн чыныгы OS-деңгээлиндеги
+    // билдирме чыгарабыз (имитация эмес) — колдонмо фондо турса да келет.
+    data.notifications.forEach(n => {
+      if (!seenNotifIds.has(n.id)) {
+        rememberSeenNotif(n.id);
+        if (notificationsEnabled() && 'Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(n.title, { body: n.body, icon: 'icons/icon-192.png', badge: 'icons/icon-64.png', tag: 'esa-notif-' + n.id }).catch(() => {});
+          }).catch(() => {});
+        }
+      }
+    });
+    if (document.getElementById('notifications-modal').classList.contains('show')) {
+      renderNotifList(data.notifications);
+    }
+  } catch (_) { /* фондук текшерүү — тынч өтөбүз */ }
+}
+document.getElementById('notif-bell-btn').addEventListener('click', async () => {
+  openModal('notifications-modal');
+  try {
+    const data = await api('GET', '/notifications');
+    renderNotifList(data.notifications);
+  } catch (_) {}
+});
+document.getElementById('notif-mark-all-read-btn').addEventListener('click', async () => {
+  try {
+    await api('POST', '/notifications/read-all');
+    renderNotifBadge(0);
+    document.querySelectorAll('#notif-list .notif-item.unread').forEach(el => el.classList.remove('unread'));
+  } catch (_) {}
+});
+setInterval(pollNotifications, 4000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') pollNotifications();
+});
 
 // ======================================================
 // INIT

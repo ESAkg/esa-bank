@@ -421,6 +421,10 @@
       </div>
       <div class="topbar-actions">
         <button class="theme-toggle" id="theme-toggle-btn-mobile"><svg class="icon"><use href="#ic-moon" id="theme-icon-use-mobile"/></svg></button>
+        <button class="icon-btn notif-bell-btn" id="notif-bell-btn">
+          <svg class="icon"><use href="#ic-bell"/></svg>
+          <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+        </button>
         <button class="icon-btn" data-goto="screen-profile"><svg class="icon"><use href="#ic-user"/></svg></button>
       </div>
     </div>
@@ -869,6 +873,21 @@
   </div>
 
   <!-- ===================== ATM WITHDRAWAL CONFIRMATION (pushed from terminal) ===================== -->
+  <!-- ===================== БИЛДИРМЕЛЕР (колокольчик) ===================== -->
+  <div class="modal-overlay" id="notifications-modal">
+    <div class="modal-sheet notif-sheet">
+      <div class="modal-handle"></div>
+      <div class="notif-sheet-header">
+        <h3 data-i18n="notifications_title">Билдирмелер</h3>
+        <button class="link-btn" id="notif-mark-all-read-btn" data-i18n="notif_mark_all_read">Баарын окулду деп белгилөө</button>
+      </div>
+      <div class="notif-list" id="notif-list">
+        <div class="notif-empty" id="notif-empty" data-i18n="notif_empty">Азырынча билдирме жок</div>
+      </div>
+      <button class="btn btn-secondary" data-close-modal="notifications-modal" style="width:100%; margin-top:10px;" data-i18n="btn_close">Жабуу</button>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="withdraw-request-modal">
     <div class="modal-sheet" style="text-align:center;">
       <div class="modal-handle"></div>
