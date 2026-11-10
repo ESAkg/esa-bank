@@ -57,17 +57,31 @@ let DENOM_COLORS = { ...FALLBACK_DENOM_COLORS };
 let DENOM_TEMPLATE_GRIDS = {};
 let templatesCalibrated = false;
 
-let workerPromise = null;
+// Бир гана OCR воркер болсо, 4 кадрды консенсус үчүн талдаганда алар
+// бири-бирин күтүп, кезек-кезек менен иштешет (жыйынтыгында жалпы убакыт
+// 4x созулат — колдонуучуга "катып калгандай" сезилет). Эки воркердон
+// турган пул менен кадрлар жупташып параллель иштейт — жалпы убакыт
+// болжол менен 2 эсе кыскарат, ал эми эс тутум (~180MB эки воркер үчүн)
+// Render акысыз планына жетиштүү батат.
+const OCR_POOL_SIZE = 2;
+const workerPromises = [];
+let nextWorkerIdx = 0;
+function createOcrWorker(slot) {
+  return createWorker('eng', 1, {
+    langPath: LANG_PATH,
+    gzip: true,
+    cachePath: path.join(OCR_CACHE_PATH, 'slot-' + slot),
+    cacheMethod: 'readwrite',
+  }).catch(err => { workerPromises[slot] = null; throw err; });
+}
 function getWorker() {
-  if (!workerPromise) {
-    workerPromise = createWorker('eng', 1, {
-      langPath: LANG_PATH,
-      gzip: true,
-      cachePath: OCR_CACHE_PATH,
-      cacheMethod: 'readwrite',
-    }).catch(err => { workerPromise = null; throw err; });
+  // Кезек-кезек менен пулдагы бош воркерлерди бөлүштүрөбүз (round-robin).
+  const slot = nextWorkerIdx % OCR_POOL_SIZE;
+  nextWorkerIdx++;
+  if (!workerPromises[slot]) {
+    workerPromises[slot] = createOcrWorker(slot);
   }
-  return workerPromise;
+  return workerPromises[slot];
 }
 
 // Прогреть воркер заранее (при старте сервера), чтобы первое сканирование
@@ -83,7 +97,12 @@ function ensureCalibrated() {
   return calibrationPromise;
 }
 function warmup() {
-  getWorker().catch(err => console.error('[billScanner] OCR warmup ката:', err.message));
+  // Пулдагы воркерлердин баарын алдын ала күйгүзүп коёбуз (биринчи чыныгы
+  // сканерлөө OCR моторун баштан жүктөбөй, дароо иштесин үчүн).
+  for (let i = 0; i < OCR_POOL_SIZE; i++) {
+    workerPromises[i] = createOcrWorker(i);
+    workerPromises[i].catch(err => console.error('[billScanner] OCR warmup ката (slot ' + i + '):', err.message));
+  }
   ensureCalibrated();
 }
 
@@ -365,14 +384,38 @@ async function recognizeBill(imageBase64) {
   const colorGuess = colorGuessCombined(avgColor, colorGrid);
 
   // 3) OCR — реальное распознавание текста на фото (ML-модель Tesseract LSTM).
+  // Камера терминалда видео кадрды 1920x1080 чейин тартат — мындай чоң
+  // сүрөттү толугу менен OCR кылуу (өзгөчө Render'дин акысыз, алсыз
+  // процессорунда) өтө узакка созулуп, колдонуучуга "убакыт бүтүп калгандай"
+  // сезилет. Номиналдын сандары купюрада чоң жана калың жазылгандыктан,
+  // OCR үчүн сүрөттү кичирейтүү тактыкка дээрлик таасир этпейт, бирок
+  // убакытты бир нече эсе кыскартат. Түс/фингерпринт так ошол эле бойдон
+  // толук чечилиштеги сүрөттөн эсептелет (жогоруда), OCR гана кичирейтилет.
+  const OCR_MAX_WIDTH = 1000;
+  const OCR_TIMEOUT_MS = 10000;
+  let ocrBuffer = buffer;
+  try {
+    if (jimpImage.bitmap.width > OCR_MAX_WIDTH) {
+      const scale = OCR_MAX_WIDTH / jimpImage.bitmap.width;
+      const ocrImage = jimpImage.clone().resize({ w: OCR_MAX_WIDTH, h: Math.round(jimpImage.bitmap.height * scale) });
+      ocrBuffer = await ocrImage.getBuffer('image/jpeg', { quality: 85 });
+    }
+  } catch (err) {
+    ocrBuffer = buffer; // кичирейтүү ишке ашпаса — баштапкы сүрөт менен уланталы
+  }
+
   let text = '';
   try {
     const worker = await getWorker();
-    const { data } = await worker.recognize(buffer);
+    const recognizePromise = worker.recognize(ocrBuffer);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('OCR убакыты бүттү (timeout)')), OCR_TIMEOUT_MS));
+    const { data } = await Promise.race([recognizePromise, timeoutPromise]);
     text = data.text || '';
   } catch (err) {
     console.error('[billScanner] OCR ката:', err.message);
-    // OCR не поднялся — работаем только по цвету, с низкой уверенностью.
+    // OCR узакка созулду же ишке ашкан жок — токтоп калбайбыз, түс боюнча
+    // гана иштейбиз (ишеним деңгээли темен болот, бирок жооп дароо кайтат).
   }
 
   const textGuess = extractDenomFromText(text);

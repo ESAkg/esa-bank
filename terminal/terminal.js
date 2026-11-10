@@ -31,15 +31,23 @@
 
   // Бекер (free-tier) хостингде сервер бир аз "уйкуда" болушу мүмкүн — ошондуктан
   // тармак катасында же убактылуу 502/503/504'тө бир жолу кайра аракет кылабыз.
-  async function api(method, path, body, _retry) {
+  async function api(method, path, body, _retry, timeoutMs) {
     const headers = { 'Content-Type': 'application/json' };
     if (DEVICE_TOKEN) headers['Authorization'] = 'Bearer ' + DEVICE_TOKEN;
     let res;
+    let timer = null;
+    const controller = timeoutMs ? new AbortController() : null;
+    if (controller) timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      res = await fetch(API + path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
+      res = await fetch(API + path, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined, signal: controller ? controller.signal : undefined });
     } catch (netErr) {
-      if (!_retry) { await sleep(1200); return api(method, path, body, true); }
+      if (netErr.name === 'AbortError') {
+        throw new Error('Сервер жооп бербей жатат — интернет жай болушу мүмкүн (Сервер не отвечает). Кайра аракет кылыңыз.');
+      }
+      if (!_retry) { await sleep(1200); return api(method, path, body, true, timeoutMs); }
       throw new Error('Сервер менен байланыш жок (Нет связи с сервером). Кайра аракет кылыңыз.');
+    } finally {
+      if (timer) clearTimeout(timer);
     }
     if ([502, 503, 504].includes(res.status) && !_retry) {
       await sleep(1500);
@@ -330,10 +338,12 @@
     note.style.display = 'none';
     video.style.display = 'block';
     try {
-      // Жогорку чечимдүү сүрөт — OCR так номиналды жана сериялык номерди
-      // окуш үчүн маанилүү (аз пиксел = начар таанып билүү).
+      // 1280x720 — номиналдын сандарын так окууга жетиштүү, бирок 1920x1080
+      // сыяктуу эле кадрды 4 жолу тартып, OCR'ге жөнөтүүдө убакытты
+      // кыскартат (аз пиксел = азыраак маалымат → сервер тезирээк иштейт,
+      // интернетке да тезирээк жүктөлөт — "катып калуу" көйгөйүн азайтат).
       depositCameraStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false
       });
       video.srcObject = depositCameraStream;
@@ -476,7 +486,7 @@
     setScannerStatus('scanning', 'Варианттар талдалууда...');
     const minDwell = sleep(400);
     try {
-      const data = await api('POST', '/device/deposit/scan-image', { sessionId: depositSessionId, images: frames });
+      const data = await api('POST', '/device/deposit/scan-image', { sessionId: depositSessionId, images: frames }, false, 35000);
       await minDwell;
       renderDepositTotal(data.total);
       startDepositCountdown(data.expiresAt);
